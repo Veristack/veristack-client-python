@@ -24,11 +24,13 @@ class FileHubClientTest(unittest.TestCase):
         )
 
     @patch('socket.socket')
-    def test_connect_receiver(self, mock_socket):
+    @patch('ssl.wrap_socket')
+    def test_connect_receiver(self, mock_wrap, mock_socket):
         """Test connecting to receiver."""
         mock_file = Mock(spec=StringIO)
         mock_file.readline.side_effect = ['Banner', '200 OK']
         mock_socket.return_value.makefile.return_value = mock_file
+        mock_wrap.return_value = None
 
         receiver = self.client._connect_receiver()
 
@@ -39,11 +41,13 @@ class FileHubClientTest(unittest.TestCase):
             mock_file.write.call_args[0][0])
 
     @patch('socket.socket')
-    def test_connect_receiver_no_banner(self, mock_socket):
+    @patch('ssl.wrap_socket')
+    def test_connect_receiver_no_banner(self, mock_wrap, mock_socket):
         """Test connecting to receiver with no banner."""
         mock_file = Mock(spec=StringIO)
         mock_file.readline.return_value = ''
         mock_socket.return_value.makefile.return_value = mock_file
+        mock_wrap.return_value = None
 
         with self.assertRaises(IOError) as e:
             self.client._connect_receiver()
@@ -51,11 +55,13 @@ class FileHubClientTest(unittest.TestCase):
         self.assertEqual('Server banner not received', str(e.exception))
 
     @patch('socket.socket')
-    def test_connect_receiver_error_response(self, mock_socket):
+    @patch('ssl.wrap_socket')
+    def test_connect_receiver_error_response(self, mock_wrap, mock_socket):
         """Test connecting to receiver with error response."""
         mock_file = Mock(spec=StringIO)
         mock_file.readline.side_effect = ['Banner', '400 BAD REQUEST']
         mock_socket.return_value.makefile.return_value = mock_file
+        mock_wrap.return_value = None
 
         with self.assertRaises(IOError) as e:
             self.client._connect_receiver()

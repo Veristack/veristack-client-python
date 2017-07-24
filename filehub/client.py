@@ -1,6 +1,7 @@
 """FileHub integration client."""
 import json
 import socket
+import ssl
 import time
 
 import jwt
@@ -55,7 +56,8 @@ class FileHubClient(_OAuth2Session):
     def _connect_receiver(self):
         """Connect to the receiver on FileHub 2.0 (Govern)."""
         receiver = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        receiver.connect((self.url, 41234))
+        ssl.wrap_socket(receiver)
+        receiver.connect((self.url, 41677))
         receiver = receiver.makefile('rw')
 
         # Receive server banner.
