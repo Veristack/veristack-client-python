@@ -1,8 +1,9 @@
 """FileHub integration client."""
-
-import jwt
+import json
 import socket
 import time
+
+import jwt
 
 from six.moves.urllib.parse import urljoin  # noqa
 
@@ -38,7 +39,6 @@ class JWTApplicationClient(Client):
 
 
 # TODO: add some niceties like url handling etc. to DRY things out.
-# TODO: handle talking to the receiver too.
 class FileHubClient(_OAuth2Session):
     """Client for communicating to FileHub 2.0 (Govern) API."""
 
@@ -117,3 +117,12 @@ class FileHubClient(_OAuth2Session):
         """Fetch list of authorizations."""
         url = urljoin(self.url, '/api/authorizations/')
         return self.get(url).json().get('results')
+
+    def send_events(self, events):
+        """Send the list of events to the receiver."""
+        receiver = self._connect_receiver()
+
+        for event in events:
+            receiver.write('PUT ' + json.dumps(event) + '\r\n')
+
+        receiver.close()

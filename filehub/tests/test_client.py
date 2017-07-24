@@ -1,7 +1,9 @@
 """FileHub 2.0 (Govern) client tests."""
+import json
 import requests
 import unittest
 
+from io import StringIO
 from mock.mock import patch
 from mock.mock import Mock
 from oauthlib.oauth2 import TokenExpiredError
@@ -24,13 +26,13 @@ class FileHubClientTest(unittest.TestCase):
     @patch('socket.socket')
     def test_connect_receiver(self, mock_socket):
         """Test connecting to receiver."""
-        mock_file = Mock(spec=file)
+        mock_file = Mock(spec=StringIO)
         mock_file.readline.side_effect = ['Banner', '200 OK']
         mock_socket.return_value.makefile.return_value = mock_file
 
         receiver = self.client._connect_receiver()
 
-        self.assertIsInstance(receiver, file)
+        self.assertIsInstance(receiver, StringIO)
         self.assertTrue(mock_file.write.called)
         self.assertIn(
             self.client.client_secret,
@@ -39,7 +41,7 @@ class FileHubClientTest(unittest.TestCase):
     @patch('socket.socket')
     def test_connect_receiver_no_banner(self, mock_socket):
         """Test connecting to receiver with no banner."""
-        mock_file = Mock(spec=file)
+        mock_file = Mock(spec=StringIO)
         mock_file.readline.return_value = ''
         mock_socket.return_value.makefile.return_value = mock_file
 
@@ -51,7 +53,7 @@ class FileHubClientTest(unittest.TestCase):
     @patch('socket.socket')
     def test_connect_receiver_error_response(self, mock_socket):
         """Test connecting to receiver with error response."""
-        mock_file = Mock(spec=file)
+        mock_file = Mock(spec=StringIO)
         mock_file.readline.side_effect = ['Banner', '400 BAD REQUEST']
         mock_socket.return_value.makefile.return_value = mock_file
 
@@ -138,3 +140,60 @@ class FileHubClientTest(unittest.TestCase):
         auth = self.client.fetch_authorizations()
 
         self.assertEqual(auth, results)
+
+    @patch.object(FileHubClient, '_connect_receiver')
+    def test_send_events(self, mock_connect):
+        """Test sending events."""
+        mock_file = Mock(spec=StringIO)
+        mock_connect.return_value = mock_file
+
+        events = [
+            {
+                'device': {
+                    'name': 'laptop1',
+                    'type': 1
+                }
+            },
+            {
+                'device': {
+                    'name': 'laptop2',
+                    'type': 1
+                }
+            }
+        ]
+
+        self.client.send_events(events)
+
+        self.assertTrue(mock_file.write.called)
+        self.assertEqual(
+            'PUT ' + json.dumps(events[0]) + '\r\n',
+            mock_file.write.call_args_list[0][0][0])
+        self.assertEqual(
+            'PUT ' + json.dumps(events[1]) + '\r\n',
+            mock_file.write.call_args_list[1][0][0])
+        self.assertTrue(mock_file.close.called)
+
+    @patch.object(FileHubClient, '_connect_receiver')
+    def test_send_events_failure(self, mock_connect):
+        """Test sending events with a failure."""
+        mock_file = Mock(spec=StringIO)
+        mock_file.write.side_effect = IOError()
+        mock_connect.return_value = mock_file
+
+        events = [
+            {
+                'device': {
+                    'name': 'laptop1',
+                    'type': 1
+                }
+            },
+            {
+                'device': {
+                    'name': 'laptop2',
+                    'type': 1
+                }
+            }
+        ]
+
+        with self.assertRaises(IOError):
+            self.client.send_events(events)
