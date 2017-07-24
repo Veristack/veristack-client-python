@@ -1,6 +1,8 @@
 """FileHub integration client."""
 
 import jwt
+import socket
+import time
 
 from six.moves.urllib.parse import urljoin  # noqa
 
@@ -49,6 +51,28 @@ class FileHubClient(_OAuth2Session):
         self.token_url = urljoin(self.url, '/oauth2/token/')
         super(FileHubClient, self).__init__(
             *args, client=JWTApplicationClient(kwargs['client_id']), **kwargs)
+
+    def _connect_receiver(self):
+        """Connect to the receiver on FileHub 2.0 (Govern)."""
+        receiver = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        receiver.connect((self.url, 41234))
+        receiver = receiver.makefile('rw')
+
+        # Receive server banner.
+        server_banner = receiver.readline()
+        if not server_banner:
+            raise IOError('Server banner not received')
+
+        # Send client banner.
+        receiver.write(
+            'HELO 1.0 client.js %s %s\r\n' % (time.time(), self.client_secret))
+        receiver.flush()
+
+        response = receiver.readline()
+        if not response.startswith('200 OK'):
+            raise IOError('Connect failed: %s' % response.strip())
+
+        return receiver
 
     def fetch_token(self, **kwargs):
         payload = {'device': {'uid': self.uid}}

@@ -21,6 +21,45 @@ class FileHubClientTest(unittest.TestCase):
             url='https://filehub.com/',
         )
 
+    @patch('socket.socket')
+    def test_connect_receiver(self, mock_socket):
+        """Test connecting to receiver."""
+        mock_file = Mock(spec=file)
+        mock_file.readline.side_effect = ['Banner', '200 OK']
+        mock_socket.return_value.makefile.return_value = mock_file
+
+        receiver = self.client._connect_receiver()
+
+        self.assertIsInstance(receiver, file)
+        self.assertTrue(mock_file.write.called)
+        self.assertIn(
+            self.client.client_secret,
+            mock_file.write.call_args[0][0])
+
+    @patch('socket.socket')
+    def test_connect_receiver_no_banner(self, mock_socket):
+        """Test connecting to receiver with no banner."""
+        mock_file = Mock(spec=file)
+        mock_file.readline.return_value = ''
+        mock_socket.return_value.makefile.return_value = mock_file
+
+        with self.assertRaises(IOError) as e:
+            self.client._connect_receiver()
+
+        self.assertEqual('Server banner not received', str(e.exception))
+
+    @patch('socket.socket')
+    def test_connect_receiver_error_response(self, mock_socket):
+        """Test connecting to receiver with error response."""
+        mock_file = Mock(spec=file)
+        mock_file.readline.side_effect = ['Banner', '400 BAD REQUEST']
+        mock_socket.return_value.makefile.return_value = mock_file
+
+        with self.assertRaises(IOError) as e:
+            self.client._connect_receiver()
+
+        self.assertEqual('Connect failed: 400 BAD REQUEST', str(e.exception))
+
     @patch.object(OAuth2Session, 'request')
     def test_request(self, mock_request):
         """Test making a request."""
