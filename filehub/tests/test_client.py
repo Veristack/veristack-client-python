@@ -149,11 +149,18 @@ class FileHubClientTest(unittest.TestCase):
 
         self.assertEqual(auth, results)
 
+    @patch.object(OAuth2Session, 'refresh_token')
     @patch.object(FileHubClient, '_connect_receiver')
-    def test_send_events(self, mock_connect):
+    def test_send_events(self, mock_connect, mock_refresh_token):
         """Test sending events."""
         mock_file = Mock(spec=StringIO)
-        mock_connect.return_value = mock_file
+        mock_connect.side_effect = [IOError(), mock_file]
+        new_token = {
+            'access_token': '789',
+            'refresh_token': '456',
+            'expires_in': '3600',
+        }
+        mock_refresh_token.return_value = new_token
 
         events = [
             {
@@ -181,12 +188,17 @@ class FileHubClientTest(unittest.TestCase):
             mock_file.write.call_args_list[1][0][0])
         self.assertTrue(mock_file.close.called)
 
+    @patch.object(OAuth2Session, 'refresh_token')
     @patch.object(FileHubClient, '_connect_receiver')
-    def test_send_events_failure(self, mock_connect):
+    def test_send_events_failure(self, mock_connect, mock_refresh_token):
         """Test sending events with a failure."""
-        mock_file = Mock(spec=StringIO)
-        mock_file.write.side_effect = IOError()
-        mock_connect.return_value = mock_file
+        mock_connect.side_effect = [IOError(), IOError()]
+        new_token = {
+            'access_token': '789',
+            'refresh_token': '456',
+            'expires_in': '3600',
+        }
+        mock_refresh_token.return_value = new_token
 
         events = [
             {

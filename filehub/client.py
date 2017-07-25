@@ -64,6 +64,7 @@ class FileHubClient(_OAuth2Session):
         # Receive server banner.
         server_banner = receiver.readline()
         if not server_banner:
+            receiver.close()
             raise IOError('Server banner not received')
 
         # Send client banner.
@@ -74,6 +75,7 @@ class FileHubClient(_OAuth2Session):
 
         response = receiver.readline()
         if not response.startswith('200 OK'):
+            receiver.close()
             raise IOError('Connect failed: %s' % response.strip())
 
         return receiver
@@ -124,7 +126,11 @@ class FileHubClient(_OAuth2Session):
 
     def send_events(self, events):
         """Send the list of events to the receiver."""
-        receiver = self._connect_receiver()
+        try:
+            receiver = self._connect_receiver()
+        except IOError:
+            self.refresh_token()
+            receiver = self._connect_receiver()
 
         for event in events:
             receiver.write('PUT ' + json.dumps(event) + '\r\n')
