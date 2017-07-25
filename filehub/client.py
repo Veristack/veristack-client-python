@@ -1,4 +1,5 @@
 """FileHub integration client."""
+import base64
 import json
 import socket
 import ssl
@@ -67,7 +68,8 @@ class FileHubClient(_OAuth2Session):
 
         # Send client banner.
         receiver.write(
-            'HELO 1.0 client.js %s %s\r\n' % (time.time(), self.client_secret))
+            'HELO 1.0 client.js %s Bearer %s\r\n' %
+            (time.time(), base64.b64encode(self.token['access_token'])))
         receiver.flush()
 
         response = receiver.readline()

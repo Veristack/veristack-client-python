@@ -32,13 +32,13 @@ class FileHubClientTest(unittest.TestCase):
         mock_socket.return_value.makefile.return_value = mock_file
         mock_wrap.return_value = None
 
+        self.client.token['access_token'] = b'token123'
+
         receiver = self.client._connect_receiver()
 
         self.assertIsInstance(receiver, StringIO)
         self.assertTrue(mock_file.write.called)
-        self.assertIn(
-            self.client.client_secret,
-            mock_file.write.call_args[0][0])
+        self.assertIn('dG9rZW4xMjM=', mock_file.write.call_args[0][0])
 
     @patch('socket.socket')
     @patch('ssl.wrap_socket')
@@ -62,6 +62,8 @@ class FileHubClientTest(unittest.TestCase):
         mock_file.readline.side_effect = ['Banner', '400 BAD REQUEST']
         mock_socket.return_value.makefile.return_value = mock_file
         mock_wrap.return_value = None
+
+        self.client.token['access_token'] = b'token123'
 
         with self.assertRaises(IOError) as e:
             self.client._connect_receiver()
