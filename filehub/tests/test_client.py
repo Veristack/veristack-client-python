@@ -10,6 +10,25 @@ from oauthlib.oauth2 import TokenExpiredError
 from requests_oauthlib import OAuth2Session
 
 from filehub.client import FileHubClient
+from filehub.client import JWTApplicationClient
+
+
+class JWTApplicationClientTest(unittest.TestCase):
+    """Test JWTApplicationClient."""
+
+    @patch('filehub.client.prepare_token_request')
+    def test_client(self, mock_request):
+        """Test the client."""
+        client = JWTApplicationClient('client123')
+
+        client.prepare_request_body()
+
+        self.assertTrue(mock_request.called)
+        self.assertEqual(
+            'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            mock_request.call_args[0][0])
+        self.assertEqual('client123', mock_request.call_args[1]['client_id'])
+        self.assertIsNone(client.prepare_request_uri())
 
 
 class FileHubClientTest(unittest.TestCase):
