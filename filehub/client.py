@@ -41,7 +41,6 @@ class JWTApplicationClient(Client):
                                      client_id=self.client_id, **kwargs)
 
 
-# TODO: add some niceties like url handling etc. to DRY things out.
 class FileHubClient(_OAuth2Session):
     """Client for communicating to FileHub 2.0 (Govern) API."""
 
