@@ -55,6 +55,10 @@ class FileHubClientTest(unittest.TestCase):
 
         receiver = self.client._connect_receiver()
 
+        self.assertTrue(mock_socket.return_value.connect.called)
+        self.assertEqual(
+            'filehub.com',
+            mock_socket.return_value.connect.call_args[0][0][0])
         self.assertIsInstance(receiver, StringIO)
         self.assertTrue(mock_file.write.called)
         self.assertIn('dG9rZW4xMjM=', mock_file.write.call_args[0][0])

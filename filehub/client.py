@@ -8,6 +8,7 @@ import time
 import jwt
 
 from six.moves.urllib.parse import urljoin  # noqa
+from six.moves.urllib.parse import urlparse  # noqa
 
 from oauthlib.oauth2 import TokenExpiredError
 from oauthlib.oauth2.rfc6749.clients.base import Client
@@ -58,7 +59,7 @@ class FileHubClient(_OAuth2Session):
         """Connect to the receiver on FileHub 2.0 (Govern)."""
         receiver = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         ssl.wrap_socket(receiver)
-        receiver.connect((self.url, 41677))
+        receiver.connect((urlparse(self.url).netloc, 41677))
         receiver = receiver.makefile('rw')
 
         # Receive server banner.
