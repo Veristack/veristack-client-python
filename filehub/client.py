@@ -20,6 +20,7 @@ from os.path import dirname, basename, getsize
 
 from six.moves.urllib.parse import urljoin  # noqa
 from six.moves.urllib.parse import urlparse  # noqa
+from six.moves.urllib.parse import urlencode  # noqa
 
 from oauthlib.oauth2 import TokenExpiredError
 from oauthlib.oauth2.rfc6749.clients.base import Client as _Client
@@ -114,7 +115,6 @@ class FileDetails(object):
         """
         kwargs = {
             'uid': hashlib.md5(bytes(path, 'ascii')).hexdigest(),
-            'path': path,
             'size': getsize(path),
             'md5': hash_path(path),
         }
@@ -219,9 +219,12 @@ class LocationDetails(object):
         self.longitude = longitude
 
     @staticmethod
-    def from_geo():
+    def from_geo(ip=None):
         """Call the FileHub geolocator service."""
-        geo = requests.get(GEO_URL).json()
+        url = GEO_URL
+        if ip:
+            url += '?' + urlencode({'ip': ip})
+        geo = requests.get(url).json()
         return LocationDetails(latitude=geo.get('latitude'),
                                longitude=geo.get('longitude'))
     
