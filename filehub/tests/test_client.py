@@ -5,12 +5,13 @@ import unittest
 
 from io import StringIO
 from mock.mock import patch
-from mock.mock import Mock
+from mock.mock import Mock, MagicMock
 from oauthlib.oauth2 import TokenExpiredError
 from requests_oauthlib import OAuth2Session
 
-from filehub.client import FileHubClient
+from filehub.client import Client
 from filehub.client import JWTApplicationClient
+from filehub.__main__ import make_timeline
 
 
 class JWTApplicationClientTest(unittest.TestCase):
@@ -35,7 +36,7 @@ class FileHubClientTest(unittest.TestCase):
     """Test FileHubClient."""
 
     def setUp(self):
-        self.client = FileHubClient(
+        self.client = Client(
             client_id='abc123',
             client_secret='1234',
             uid='abcd',
@@ -53,13 +54,12 @@ class FileHubClientTest(unittest.TestCase):
 
         self.client.token['access_token'] = b'token123'
 
-        receiver = self.client._connect_receiver()
+        receiver = self.client.get_event_writer()
 
         self.assertTrue(mock_socket.return_value.connect.called)
         self.assertEqual(
             'filehub.com',
             mock_socket.return_value.connect.call_args[0][0][0])
-        self.assertIsInstance(receiver, StringIO)
         self.assertTrue(mock_file.write.called)
         self.assertIn('dG9rZW4xMjM=', mock_file.write.call_args[0][0])
 
@@ -73,7 +73,7 @@ class FileHubClientTest(unittest.TestCase):
         mock_wrap.return_value = None
 
         with self.assertRaises(IOError) as e:
-            self.client._connect_receiver()
+            self.client.get_event_writer()
 
         self.assertEqual('Server banner not received', str(e.exception))
 
@@ -89,7 +89,7 @@ class FileHubClientTest(unittest.TestCase):
         self.client.token['access_token'] = b'token123'
 
         with self.assertRaises(IOError) as e:
-            self.client._connect_receiver()
+            self.client.get_event_writer()
 
         self.assertEqual('Connect failed: 400 BAD REQUEST', str(e.exception))
 
@@ -119,7 +119,7 @@ class FileHubClientTest(unittest.TestCase):
         }
         mock_refresh_token.return_value = new_token
 
-        client = FileHubClient(
+        client = Client(
             client_id='abc123',
             client_secret='1234',
             uid='abcd',
@@ -172,47 +172,24 @@ class FileHubClientTest(unittest.TestCase):
 
         self.assertEqual(auth, results)
 
-    @patch.object(OAuth2Session, 'refresh_token')
-    @patch.object(FileHubClient, '_connect_receiver')
-    def test_send_events(self, mock_connect, mock_refresh_token):
-        """Test sending events."""
-        mock_file = Mock(spec=StringIO)
-        mock_connect.side_effect = [IOError(), mock_file]
-        new_token = {
-            'access_token': '789',
-            'refresh_token': '456',
-            'expires_in': '3600',
-        }
-        mock_refresh_token.return_value = new_token
+    @patch.object(Client, 'get_event_writer')
+    def test_send_events(self, mock_get_event_writer):
+        """Test connecting to receiver with error response."""
+        mock_event_writer = MagicMock()
+        mock_event_writer.__enter__.return_value = mock_event_writer
+        mock_get_event_writer.return_value = mock_event_writer
 
-        events = [
-            {
-                'device': {
-                    'name': 'laptop1',
-                    'type': 1
-                }
-            },
-            {
-                'device': {
-                    'name': 'laptop2',
-                    'type': 1
-                }
-            }
-        ]
+        events = list(make_timeline())
 
         self.client.send_events(events)
 
-        self.assertTrue(mock_file.write.called)
-        self.assertEqual(
-            'PUT ' + json.dumps(events[0]) + '\r\n',
-            mock_file.write.call_args_list[0][0][0])
-        self.assertEqual(
-            'PUT ' + json.dumps(events[1]) + '\r\n',
-            mock_file.write.call_args_list[1][0][0])
-        self.assertTrue(mock_file.close.called)
+        self.assertTrue(mock_event_writer.send.called)
+        for i, e in enumerate(events):
+            self.assertEqual(e, mock_event_writer.send.call_args_list[i][0][0])
+        self.assertTrue(mock_event_writer.__exit__.called)
 
     @patch.object(OAuth2Session, 'refresh_token')
-    @patch.object(FileHubClient, '_connect_receiver')
+    @patch.object(Client, 'get_event_writer')
     def test_send_events_failure(self, mock_connect, mock_refresh_token):
         """Test sending events with a failure."""
         mock_connect.side_effect = [IOError(), IOError()]
@@ -223,20 +200,7 @@ class FileHubClientTest(unittest.TestCase):
         }
         mock_refresh_token.return_value = new_token
 
-        events = [
-            {
-                'device': {
-                    'name': 'laptop1',
-                    'type': 1
-                }
-            },
-            {
-                'device': {
-                    'name': 'laptop2',
-                    'type': 1
-                }
-            }
-        ]
+        events = list(make_timeline())
 
         with self.assertRaises(IOError):
             self.client.send_events(events)

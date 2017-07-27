@@ -2,7 +2,10 @@
 
 from __future__ import absolute_import
 
+import hashlib
 import random
+import copy
+import time
 
 from docopt import docopt
 from faker import Faker
@@ -12,10 +15,17 @@ from schema import Use
 from os.path import join as pathjoin
 from os.path import dirname, basename
 
+from six import PY3
+
 from filehub import (
-    Client, DeviceDetails, PersonDetails, LocationDetails,
-    DEV_CLOUD, DEVICE_TYPES,
+    Client, DeviceDetails, PersonDetails, LocationDetails, FileDetails, Event,
+    DEV_CLOUD, DEVICE_TYPES, ACT_CREATE, ACT_WRITE, ACT_MOVE, ACT_COPY,
+    ACT_READ, ACT_DELETE,
 )
+
+if not PY3:
+    def bytes(d, enc=None):
+        return d
 
 
 FAKE = Faker()
@@ -28,7 +38,7 @@ PATH_PARTS = (
     'Downloads', )
 
 USERS = [
-    PersonDetails**{
+    PersonDetails(**{
         'username': 'btimby',
         'email': 'btimby@smartfile.com',
         'fullname': 'Ben Timby',
@@ -65,35 +75,35 @@ USERS = [
 
 DEVICES = [
     DeviceDetails(**{
+        'device_type': DEV_CLOUD,
         'name': 'dropbox',
         'addr': '10.0.1.2',
         'os': 'Winders',
-        'type': DEV_CLOUD
     }), DeviceDetails(**{
+        'device_type': DEV_CLOUD,
         'name': 'gdrive',
         'addr': '10.0.1.2',
         'os': 'Winders',
-        'type': DEV_CLOUD
     }), DeviceDetails(**{
+        'device_type': random.choice(DEVICE_TYPES),
         'name': 'Diet Pepsi',
         'addr': '10.0.1.2',
         'os': 'Winders',
-        'type': random.choice(DEVICE_TYPES)
     }), DeviceDetails(**{
+        'device_type': random.choice(DEVICE_TYPES),
         'name': 'Diet Dew',
         'addr': '10.0.1.3',
         'os': 'Mac OS X',
-        'type': random.choice(DEVICE_TYPES)
     }), DeviceDetails(**{
+        'device_type': random.choice(DEVICE_TYPES),
         'name': 'Mtn Dew',
         'addr': '192.168.1.12',
         'os': 'Linux',
-        'type': random.choice(DEVICE_TYPES)
     }), DeviceDetails(**{
+        'device_type': random.choice(DEVICE_TYPES),
         'name': 'DrPepper',
         'addr': '192.168.1.12',
         'os': 'Linux',
-        'type': random.choice(DEVICE_TYPES)
     }),
 ]
 
@@ -119,12 +129,12 @@ def make_file():
     # on duster, I excluded this. For fingerprint support, generate some
     # bodies/fingerprints and embed them as constants above.
     # body = '\r\n\r\n'.join([FAKE.text() for i in range(random.randint(1, 10))])
-    size = random.getint(0, 1024 ** 3)
+    size = random.randint(0, 1024 ** 3)
     # The UID is derived from the path unless the platform provides a unique
     # identifier (google drive does, onedrive does, genny uses the path).
     uid = hashlib.md5(bytes(path, 'ascii')).hexdigest()
     f = FileDetails(uid=uid, name=name, directory=directory, size=size,
-                    md5=FAKE.md5(faw_output=false))
+                    md5=FAKE.md5(raw_output=False))
     return f
 
 
@@ -142,7 +152,7 @@ def make_event(action_type, device, file, timestamp):
         device=device,
         timestamp=timestamp,
         person=random.choice(USERS),
-        files=(file,),
+        files=[file],
         extra={
             "extra_dict": {
                 "ip": FAKE.ipv4(network=False),
@@ -152,7 +162,7 @@ def make_event(action_type, device, file, timestamp):
         }
     )
 
-    if action in (ACT_MOVE, ACT_COPY):
+    if action_type in (ACT_MOVE, ACT_COPY):
         # For some actions we need a similar file with a different path.
         file2 = copy.deepcopy(file)
         fake_event.files.append(file2)
@@ -163,7 +173,7 @@ def make_event(action_type, device, file, timestamp):
                 break
         # Destination is a different directory, which means the UID will be
         # different.
-        dst_path = pathjoin(dst_dir, fake_data['file1']['name'])
+        dst_path = pathjoin(dst_dir, fake_event.files[0].name)
         file2.directory = dst_dir
         file2.uid = hashlib.md5(bytes(dst_path, 'ascii')).hexdigest()
 

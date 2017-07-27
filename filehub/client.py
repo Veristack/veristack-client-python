@@ -62,10 +62,11 @@ def hash_path(path):
     """Perform an MD5 sum of the given path."""
     md5 = haslib.md5()
     with open(path, 'r') as f:
-        block = f.read()
-        if not block:
-            break
-        md5.update(block)
+        while True:
+            block = f.read()
+            if not block:
+                break
+            md5.update(block)
     return md5.hexdigest()
 
 
@@ -97,12 +98,13 @@ class FileDetails(object):
     Provides validation and serialization.
     """
     def __init__(self, uid=None, directory=None, name=None, size=None,
-                 md5=None, extra=None):
+                 md5=None, fingerprint=None, extra=None):
         self.uid = uid
         self.directory = directory
         self.name = name
         self.size = size
         self.md5 = md5
+        self.fingerprint = fingerprint
         self.extra = extra or {}
 
     @staticmethod
@@ -142,6 +144,8 @@ class FileDetails(object):
             'size': self.size,
             'md5': self.md5,
         }
+        if self.fingerprint:
+            d["fingerprint"] = self.fingerprint
         if self.extra:
             d.update(self.extra)
         return json.dumps(d)
@@ -237,19 +241,19 @@ class Event(object):
     Provides validation and serialization of event message.
     """
     def __init__(self, action_type=None, device=None, timestamp=None,
-                 person=None, location=None, files=(,), extra=None):
+                 person=None, location=None, files=None, extra=None):
         self.action_type = action_type
         self.device = device
         self.timestamp = timestamp or time.time()
         self.person = person
         self.location = location
-        self.files = list(files)
+        self.files = list(files) if files else []
         self.extra = extra or {}
 
     def to_json(self):
         assert len(self.files) in (1, 2), 'must provide one or two files'
         assert all(map(lambda f: callable(getattr(f, 'to_json', None)),
-                       self.files),  'all files must have `.to_json()` method'
+                       self.files)), 'all files must have `.to_json()` method'
         assert self.action_type, 'action_type must be set'
         assert self.device, 'device must be set'
         assert callable(getattr(self.device, 'to_json', None)), \
@@ -258,7 +262,8 @@ class Event(object):
         assert self.person, 'person must be set'
         assert callable(getattr(self.person, 'to_json', None)), \
             'person must have `to_json()` method'
-        assert location is None or callable(getattr(self.location, 'to_json', None)), \
+        assert (self.location is None or
+                callable(getattr(self.location, 'to_json', None))), \
             'location must be LocationDetails or None'
         d = {
             "timestamp": self.timestamp,
@@ -284,8 +289,9 @@ class EventWriter(object):
     context manager to ensure the connection is closed. Checks server response
     and raises `IOError` for any protocol errors.
     """
-    def __init__(self, token):
-        self.token = token
+    def __init__(self, client):
+        self.token = client.token
+        self.url = client.url
         self._sock = None
 
     def __enter__(self):
@@ -349,20 +355,21 @@ class EventWriter(object):
 class Client(_OAuth2Session):
     """Client for communicating to FileHub 2.0 (Govern) API."""
 
-    def __init__(self, client_secret, uid, url, refresh_token_callback=None,
+    def __init__(self, url, uid, refresh_token_callback=None,
                  *args, **kwargs):
+        self.client_secret = kwargs.pop('client_secret', None)
+        if self.client_secret is None and 'token' not in kwargs:
+            raise AssertionError('Must provide token or client_secret')
         self.url = url
-        self.client_secret = client_secret
         self.uid = uid
         self.refresh_token_callback = refresh_token_callback
-        self.token_url = urljoin(self.url, '/oauth2/token/')
         super(Client, self).__init__(
             *args, client=JWTApplicationClient(kwargs['client_id']), **kwargs)
 
     def fetch_token(self, **kwargs):
         payload = {'device': {'uid': self.uid}}
         token = super(Client, self).fetch_token(
-            self.token_url,
+            urljoin(self.url, '/oauth2/token/'),
             headers={
                 'Authorization': b'Bearer %s' %
                 jwt.encode(payload, self.client_secret)
@@ -374,7 +381,7 @@ class Client(_OAuth2Session):
         kwargs.setdefault('client_id', self.client_id)
         payload = {'device': {'uid': self.uid}}
         return super(Client, self).refresh_token(
-            self.token_url,
+            urljoin(self.url, '/oauth2/token/'),
             client_secret=self.client_secret,
             headers={
                 'Authorization': b'Bearer %s' %
@@ -405,10 +412,12 @@ class Client(_OAuth2Session):
 
     def get_event_writer(self):
         """Returns a persistent connection to the receiver."""
-        writer = EventWriter(self.token)
+        writer = EventWriter(self)
         try:
             writer.open()
-        except IOError:
+        except IOError as e:
+            if not 'Authentication failed' in e.args[0]:
+                raise
             writer.token = self.refresh_token()
             writer.open()
         return writer
