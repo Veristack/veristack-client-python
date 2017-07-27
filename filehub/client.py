@@ -35,6 +35,29 @@ HOSTNAME = socket.gethostname()
 USERNAME = getpass.getuser()
 
 
+ACT_CREATE = 1
+ACT_READ = 2
+ACT_WRITE = 3
+ACT_DELETE = 4
+ACT_MOVE = 5
+ACT_COPY = 6
+
+ACTION_TYPES = (
+    ACT_CREATE,
+    ACT_READ,
+    ACT_WRITE,
+    ACT_DELETE,
+    ACT_MOVE,
+    ACT_COPY, )
+
+DEV_CLOUD = 1
+DEV_DESKTOP = 2
+
+DEVICE_TYPES = (
+    DEV_CLOUD,
+    DEV_DESKTOP, )
+
+
 def hash_path(path):
     """Perform an MD5 sum of the given path."""
     md5 = haslib.md5()
@@ -74,12 +97,13 @@ class FileDetails(object):
     Provides validation and serialization.
     """
     def __init__(self, uid=None, directory=None, name=None, size=None,
-                 md5=None):
+                 md5=None, extra=None):
         self.uid = uid
         self.directory = directory
         self.name = name
         self.size = size
         self.md5 = md5
+        self.extra = extra or {}
 
     @staticmethod
     def from_path(path):
@@ -111,13 +135,16 @@ class FileDetails(object):
         assert self.directory, 'directory must be set'
         assert self.name, 'name must be set'
         assert self.md5, 'md5 must be set'
-        return json.dumps({
+        d = {
             'uid': self.uid,
             'directory': self.directory,
             'name': self.name,
             'size': self.size,
             'md5': self.md5,
-        })
+        }
+        if self.extra:
+            d.update(self.extra)
+        return json.dumps(d)
 
 
 class PersonDetails(object):
@@ -126,20 +153,24 @@ class PersonDetails(object):
 
     Provides validation and serialization. Detects username.
     """
-    def __init__(self, username=None, fullname=None, email=None):
+    def __init__(self, username=None, fullname=None, email=None, extra=None):
         self.username = username or USERNAME
         self.fullname = fullname
         self.email = email
+        self.extra = extra or {}
 
     def to_json(self):
         assert self.username, 'username must be set'
         assert self.fullname, 'fullname must be set'
         assert self.email, 'email must be set'
-        return json.dumps({
+        d = {
             'username': self.username,
             'fullname': self.fullname,
             'email': self.email,
-        })
+        }
+        if self.extra:
+            d.update(self.extra)
+        return json.dumps(d)
 
 
 class DeviceDetails(object):
@@ -148,23 +179,28 @@ class DeviceDetails(object):
 
     Provides valiation and serialization. Detects the hostname and os details.
     """
-    def __init__(self, device_type=None, name=None, addr=None, os=None):
+    def __init__(self, device_type=None, name=None, addr=None, os=None,
+                 extra=None):
         self.device_type = device_type
         self.name = name or HOSTNAME
         self.addr = addr
         self.os = os or OS
+        self.extra = extra or {}
 
     def to_json(self):
         assert self.device_type in DEVICE_TYPES, 'invalid device_type'
         assert self.name, 'name must be set'
         assert self.addr, 'addr must be set'
         assert self.os, 'os must be set'
-        return json.dumps({
+        d = {
             'device_type': self.device_type,
             'name': self.name,
             'addr': self.addr,
             'os': self.os
-        })
+        }
+        if self.extra:
+            d.update(self.extra)
+        return json.dumps(d)
 
 
 class LocationDetails(object):
@@ -181,7 +217,7 @@ class LocationDetails(object):
     @staticmethod
     def from_geo():
         """Call the FileHub geolocator service."""
-        geo = requests.get(GEO_URL)
+        geo = requests.get(GEO_URL).json()
         return LocationDetails(latitude=geo.get('latitude'),
                                longitude=geo.get('longitude'))
     
@@ -201,13 +237,14 @@ class Event(object):
     Provides validation and serialization of event message.
     """
     def __init__(self, action_type=None, device=None, timestamp=None,
-                 person=None, location=None, files=(,)):
+                 person=None, location=None, files=(,), extra=None):
         self.action_type = action_type
         self.device = device
         self.timestamp = timestamp or time.time()
         self.person = person
         self.location = location
         self.files = list(files)
+        self.extra = extra or {}
 
     def to_json(self):
         assert len(self.files) in (1, 2), 'must provide one or two files'
@@ -224,8 +261,8 @@ class Event(object):
         assert location is None or callable(getattr(self.location, 'to_json', None)), \
             'location must be LocationDetails or None'
         d = {
-            "device": self.device,
             "timestamp": self.timestamp,
+            "device": self.device.to_json(),
             "person": self.person.to_json(),
             "action_type": self.action_type,
         }
@@ -234,6 +271,8 @@ class Event(object):
         d["file1"] = self.files[0].to_json()
         if len(self.files) == 2:
             d["file2"] = self.files[1].to_json()
+        if self.extra:
+            d.update(self.extra)
         return json.dumps(d)
 
 

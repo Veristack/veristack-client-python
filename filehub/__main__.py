@@ -2,12 +2,268 @@
 
 from __future__ import absolute_import
 
-from filehub import FileHubClient
+import random
+
+from docopt import docopt
+from faker import Faker
+from schema import Schema
+from schema import Use
+
+from os.path import join as pathjoin
+from os.path import dirname, basename
+
+from filehub import (
+    Client, DeviceDetails, PersonDetails, LocationDetails,
+    DEV_CLOUD, DEVICE_TYPES,
+)
 
 
-def main():
-    pass
+FAKE = Faker()
+
+PATH_PARTS = (
+    'Documents',
+    'Private',
+    'Share',
+    'New',
+    'Downloads', )
+
+USERS = [
+    PersonDetails**{
+        'username': 'btimby',
+        'email': 'btimby@smartfile.com',
+        'fullname': 'Ben Timby',
+    }), PersonDetails(**{
+        'username': 'tcunningham',
+        'email': 'tcunningham@smartfile.com',
+        'fullname': 'Travis Cunningham',
+    }), PersonDetails(**{
+        'username': 'tbrazelton',
+        'email': 'tbrazelton@smartfile.com',
+        'fullname': 'Taylor Brazelton',
+    }), PersonDetails(**{
+        'username': 'dlund',
+        'email': 'dlund@smartfile.com',
+        'fullname': 'David Lund',
+    }), PersonDetails(**{
+        'username': 'dgalitsky',
+        'email': 'dgalitsky@smartfile.com',
+        'fullname': 'David Galitsky',
+    }), PersonDetails(**{
+        'username': 'cbarnes',
+        'email': 'cbarnes@smartfile.com',
+        'fullname': 'Clifton Barnes',
+    }), PersonDetails(**{
+        'username': 'jemery',
+        'email': 'jemery@smartfile.com',
+        'fullname': 'Jennifer Emery',
+    }), PersonDetails(**{
+        'username': 'tspelde',
+        'email': 'tspelde@smartfile.com',
+        'fullname': 'Tony Spelde',
+    }),
+]
+
+DEVICES = [
+    DeviceDetails(**{
+        'name': 'dropbox',
+        'addr': '10.0.1.2',
+        'os': 'Winders',
+        'type': DEV_CLOUD
+    }), DeviceDetails(**{
+        'name': 'gdrive',
+        'addr': '10.0.1.2',
+        'os': 'Winders',
+        'type': DEV_CLOUD
+    }), DeviceDetails(**{
+        'name': 'Diet Pepsi',
+        'addr': '10.0.1.2',
+        'os': 'Winders',
+        'type': random.choice(DEVICE_TYPES)
+    }), DeviceDetails(**{
+        'name': 'Diet Dew',
+        'addr': '10.0.1.3',
+        'os': 'Mac OS X',
+        'type': random.choice(DEVICE_TYPES)
+    }), DeviceDetails(**{
+        'name': 'Mtn Dew',
+        'addr': '192.168.1.12',
+        'os': 'Linux',
+        'type': random.choice(DEVICE_TYPES)
+    }), DeviceDetails(**{
+        'name': 'DrPepper',
+        'addr': '192.168.1.12',
+        'os': 'Linux',
+        'type': random.choice(DEVICE_TYPES)
+    }),
+]
+
+def make_path():
+    """
+    Generate a random path.
+    """
+    path = '/' + '/'.join(
+        random.sample(PATH_PARTS, random.randint(0, len(PATH_PARTS))))
+    return path
+
+# Create 100 random paths to work with.
+PATHS = [make_path() for _ in range(10)]
+
+
+def make_file():
+    ''' Generate a file resource. '''
+    # Don't make paths completely random, we want some overlap.
+    directory = random.choice(PATHS)
+    name = FAKE.file_name()
+    path = pathjoin(directory, name)
+    # TODO: this was used with fingerprinting, but to remove the dependency
+    # on duster, I excluded this. For fingerprint support, generate some
+    # bodies/fingerprints and embed them as constants above.
+    # body = '\r\n\r\n'.join([FAKE.text() for i in range(random.randint(1, 10))])
+    size = random.getint(0, 1024 ** 3)
+    # The UID is derived from the path unless the platform provides a unique
+    # identifier (google drive does, onedrive does, genny uses the path).
+    uid = hashlib.md5(bytes(path, 'ascii')).hexdigest()
+    f = FileDetails(uid=uid, name=name, directory=directory, size=size,
+                    md5=FAKE.md5(faw_output=false))
+    return f
+
+
+def make_event(action_type, device, file, timestamp):
+    if action_type == ACT_WRITE:
+        # Simulate writing data to the file. Create a new randomized file and
+        # copy _some_ of it's attributes.
+        mutation = make_file()
+        file.size = mutation.size
+        file.md5 = mutation.md5
+        file.fingerprint = mutation.fingerprint
+
+    fake_event = Event(
+        action_type=action_type,
+        device=device,
+        timestamp=timestamp,
+        person=random.choice(USERS),
+        files=(file,),
+        extra={
+            "extra_dict": {
+                "ip": FAKE.ipv4(network=False),
+                "company_email": FAKE.company_email()
+            },
+            "extra_key": FAKE.free_email_domain(),
+        }
+    )
+
+    if action in (ACT_MOVE, ACT_COPY):
+        # For some actions we need a similar file with a different path.
+        file2 = copy.deepcopy(file)
+        fake_event.files.append(file2)
+        src_dir = file2.directory
+        while True:
+            dst_dir = random.choice(PATHS)
+            if src_dir != dst_dir:
+                break
+        # Destination is a different directory, which means the UID will be
+        # different.
+        dst_path = pathjoin(dst_dir, fake_data['file1']['name'])
+        file2.directory = dst_dir
+        file2.uid = hashlib.md5(bytes(dst_path, 'ascii')).hexdigest()
+
+    # Append extra data into person
+    fake_event.person.extra = {'mac_address': FAKE.mac_address()}
+    return fake_event
+
+
+def make_timeline(device=None, file=None, timestamp=None):
+    if not device:
+        device = random.choice(DEVICES)
+    if not file:
+        # Create a random file.
+        file = make_file()
+    if not timestamp:
+        # Pick a start time, we will increment this as we move forward.
+        timestamp = random.randint(int(time.time()) - 31536000,
+                                   int(time.time()))
+    # And a create action.
+    yield make_event(ACT_CREATE, device, file, timestamp)
+    # Create a series of events:
+    for i in range(random.randint(5, 8)):
+        # Increment time by 10s-4d
+        timestamp += random.randint(10, 345600)
+        # Only a subset of actions make sense here.
+        action = random.choice((ACT_READ, ACT_WRITE, ACT_COPY))
+        event = make_event(action, device, file, timestamp)
+        yield event
+        if action == ACT_COPY:
+            yield make_event(ACT_CREATE, device, event.files[1], timestamp)
+    # Increment time by 10s-4d
+    timestamp += random.randint(10, 345600)
+    # Half the time, end with a terminal action
+    terminal_action = random.choice((ACT_MOVE, ACT_DELETE, None, None))
+    if terminal_action:
+        event = make_event(terminal_action, device, file, timestamp)
+        yield event
+        if terminal_action == ACT_MOVE:
+            yield make_event(ACT_CREATE, device, event.files[1], timestamp)
+
+
+def handle_rand(clients, opt):
+    # Send a bunch of messages.
+    count = 0
+    while True:
+        for event in make_timeline():
+            random.choice(clients).send(event)
+            count += 1
+        if opt['--count'] and count >= opt['--count'] - 1:
+            break
+        time.sleep(opt['--sleep'])
+
+
+def main(opt):
+    """
+    Genny
+
+    Generates audit data for FileHub. The data is injected into the receiver.
+    Receiver adds data to the Hot model, and from there it is ingested into
+    Audit model and friends.
+
+    Genny attempts to create coherent random timelines of file activity.
+    Events are produced in a manner that yields good timeline data for testing
+    the filehub application.
+
+    Usage:
+        genny [-p PORT] [-H HOST] [-c COUNT] [-s SLEEP] [-o CONNECTIONS]
+
+    Options:
+        -H --host HOST    Host to connect to [default: localhost]
+        -p --port PORT    TCP port to connect to on HOST [default: 41666]
+        -c --count COUNT  Number of messages to generate/send [default: 0]
+        -s --sleep SLEEP  Seconds to sleep between messages [default: 0]
+        -o --connections CONNECTIONS    Number of clients to send messages [default: 1]
+    """
+
+    client = Client()
+
+    # Create a lot of connections.
+    for i in range(0, opt['--connections']):
+        clients.append(client.get_event_writer())
+
+    print("Clients Connected: " + str(len(clients)))
+
+    handle_rand(clients, opt)
+
+    # Close all of those connections.
+    for client in clients:
+        client.close()
 
 
 if __name__ == '__main__':
-    main()
+    opt = docopt(main.__doc__)
+
+    opt = Schema({
+        '--port': Use(int),
+        '--count': Use(int),
+        '--sleep': Use(float),
+        '--connections': Use(int),
+        object: object,
+    }).validate(opt)
+
+    main(opt)
