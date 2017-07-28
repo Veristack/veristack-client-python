@@ -340,7 +340,7 @@ class EventWriter(object):
     def send(self, event):
         """Send the event to the receiver."""
         assert isinstance(event, Event), 'Must send Event'
-        self._sock.write('PUT %s\r\n' % json.dumps(event))
+        self._sock.write('PUT %s\r\n' % event.to_json())
         self._sock.flush()
         response = self._sock.readline().strip()
 

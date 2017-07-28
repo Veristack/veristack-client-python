@@ -10,7 +10,9 @@ from oauthlib.oauth2 import TokenExpiredError
 from requests_oauthlib import OAuth2Session
 
 from filehub.client import Client
+from filehub.client import EventWriter
 from filehub.client import hash_path
+from filehub.client import LocationDetails
 from filehub.client import JWTApplicationClient
 from filehub.__main__ import make_timeline
 
@@ -186,6 +188,24 @@ class FileHubClientTest(unittest.TestCase):
         auth = self.client.fetch_authorizations()
 
         self.assertEqual(auth, results)
+
+    @patch.object(EventWriter, 'open')
+    def test_event_writer_send(self, mock_open):
+        """Test sending events with the event writer."""
+        mock_open.return_value = None
+
+        with self.client.get_event_writer() as writer:
+            writer._sock = MagicMock()
+            writer._sock.write.return_value = None
+            writer._sock.flush.return_value = None
+            writer._sock.readline.return_value = '200 OK'
+
+            events = list(make_timeline())
+            for event in events:
+                event.location = LocationDetails(123, 456)
+                writer.send(event)
+
+            self.assertEqual(len(events), writer._sock.write.call_count)
 
     @patch.object(Client, 'get_event_writer')
     def test_send_events(self, mock_get_event_writer):
