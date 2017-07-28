@@ -209,7 +209,7 @@ class FileHubClientTest(unittest.TestCase):
 
     @patch.object(Client, 'get_event_writer')
     def test_send_events(self, mock_get_event_writer):
-        """Test connecting to receiver with error response."""
+        """Test sending events to the receiver."""
         mock_event_writer = MagicMock()
         mock_event_writer.__enter__.return_value = mock_event_writer
         mock_get_event_writer.return_value = mock_event_writer
