@@ -9,6 +9,7 @@ import random
 import copy
 import time
 
+from pprint import pprint
 from os.path import join as pathjoin
 
 from docopt import docopt
@@ -222,6 +223,7 @@ def handle_rand(clients, opt):
     count = 0
     while True:
         for event in make_timeline():
+            pprint(event.to_dict())
             random.choice(clients).send(event)
             count += 1
         if opt['--count'] and count >= opt['--count'] - 1:

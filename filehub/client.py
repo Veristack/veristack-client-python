@@ -131,8 +131,8 @@ class FileDetails(object):
         self.directory = dirname(value)
         self.name = basename(value)
 
-    def to_json(self):
-        """Convert to json."""
+    def to_dict(self):
+        """Convert to dictionary."""
         assert self.uid, 'uid must be set'
         assert self.size, 'size must be set'
         assert self.directory, 'directory must be set'
@@ -149,6 +149,11 @@ class FileDetails(object):
             d['fingerprint'] = self.fingerprint
         if self.extra:
             d.update(self.extra)
+        return d
+
+    def to_json(self):
+        """Convert to json."""
+        d = self.to_dict()
         return json.dumps(d)
 
 
@@ -164,8 +169,8 @@ class PersonDetails(object):
         self.email = email
         self.extra = extra or {}
 
-    def to_json(self):
-        """Convert to json."""
+    def to_dict(self):
+        """Convert to dictionary."""
         assert self.username, 'username must be set'
         assert self.fullname, 'fullname must be set'
         assert self.email, 'email must be set'
@@ -176,6 +181,11 @@ class PersonDetails(object):
         }
         if self.extra:
             d.update(self.extra)
+        return d
+
+    def to_json(self):
+        """Convert to json."""
+        d = self.to_dict()
         return json.dumps(d)
 
 
@@ -193,20 +203,25 @@ class DeviceDetails(object):
         self.os = os or OS
         self.extra = extra or {}
 
-    def to_json(self):
-        """Convert to json."""
+    def to_dict(self):
+        """Convert to dictionary."""
         assert self.device_type in DEVICE_TYPES, 'invalid device_type'
         assert self.name, 'name must be set'
         assert self.addr, 'addr must be set'
         assert self.os, 'os must be set'
         d = {
-            'device_type': self.device_type,
+            'type': self.device_type,
             'name': self.name,
             'addr': self.addr,
             'os': self.os
         }
         if self.extra:
             d.update(self.extra)
+        return d
+
+    def to_json(self):
+        """Convert to json."""
+        d = self.to_dict()
         return json.dumps(d)
 
 
@@ -236,14 +251,19 @@ class LocationDetails(object):
         return LocationDetails(latitude=geo.get('latitude'),
                                longitude=geo.get('longitude'))
 
-    def to_json(self):
-        """Convert to json."""
+    def to_dict(self):
+        """Convert to dictionary."""
         assert self.latitude, 'latitude must be set'
         assert self.longitude, 'longitude must be set'
-        return json.dumps({
+        return {
             'latitude': self.latitude,
             'longitude': self.longitude,
-        })
+        }
+
+    def to_json(self):
+        """Convert to json."""
+        d = self.to_dict()
+        return json.dumps(d)
 
 
 class Event(object):
@@ -262,35 +282,40 @@ class Event(object):
         self.files = list(files) if files else []
         self.extra = extra or {}
 
-    def to_json(self):
-        """Convert to json."""
+    def to_dict(self):
+        """Convert to dictionary."""
         assert len(self.files) in (1, 2), 'must provide one or two files'
-        assert all(map(lambda f: callable(getattr(f, 'to_json', None)),
-                       self.files)), 'all files must have `.to_json()` method'
+        assert all(map(lambda f: callable(getattr(f, 'to_dict', None)),
+                       self.files)), 'all files must have `.to_dict()` method'
         assert self.action_type, 'action_type must be set'
         assert self.device, 'device must be set'
-        assert callable(getattr(self.device, 'to_json', None)), \
-            'device must have `to_json()` method'
+        assert callable(getattr(self.device, 'to_dict', None)), \
+            'device must have `to_dict()` method'
         assert self.timestamp, 'timestamp must be set'
         assert self.person, 'person must be set'
-        assert callable(getattr(self.person, 'to_json', None)), \
-            'person must have `to_json()` method'
+        assert callable(getattr(self.person, 'to_dict', None)), \
+            'person must have `to_dict()` method'
         assert (self.location is None or
-                callable(getattr(self.location, 'to_json', None))), \
+                callable(getattr(self.location, 'to_dict', None))), \
             'location must be LocationDetails or None'
         d = {
             'timestamp': self.timestamp,
-            'device': self.device.to_json(),
-            'person': self.person.to_json(),
+            'device': self.device.to_dict(),
+            'person': self.person.to_dict(),
             'action_type': self.action_type,
         }
         if self.location:
-            d['location'] = self.location.to_json()
-        d['file1'] = self.files[0].to_json()
+            self.update(self.location.to_dict())
+        d['file1'] = self.files[0].to_dict()
         if len(self.files) == 2:
-            d['file2'] = self.files[1].to_json()
+            d['file2'] = self.files[1].to_dict()
         if self.extra:
             d.update(self.extra)
+        return d
+
+    def to_json(self):
+        """Convert to json."""
+        d = self.to_dict()
         return json.dumps(d)
 
 
