@@ -225,7 +225,12 @@ class LocationDetails(object):
         url = GEO_URL
         if ip:
             url += '?' + urlencode({'ip': ip})
-        geo = requests.get(url).json()
+
+        try:
+            geo = requests.get(url).json()
+        except:
+            raise IOError('Unable to obtain location from geolocator service')
+
         return LocationDetails(latitude=geo.get('latitude'),
                                longitude=geo.get('longitude'))
 

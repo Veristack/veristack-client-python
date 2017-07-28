@@ -11,9 +11,10 @@ from requests_oauthlib import OAuth2Session
 
 from filehub.client import Client
 from filehub.client import EventWriter
+from filehub.client import GEO_URL
 from filehub.client import hash_path
-from filehub.client import LocationDetails
 from filehub.client import JWTApplicationClient
+from filehub.client import LocationDetails
 from filehub.__main__ import make_timeline
 
 
@@ -190,8 +191,18 @@ class FileHubClientTest(unittest.TestCase):
         self.assertEqual(auth, results)
 
     @patch.object(EventWriter, 'open')
-    def test_event_writer_send(self, mock_open):
+    @patch('requests.get')
+    def test_event_writer_send(self, mock_get, mock_open):
         """Test sending events with the event writer."""
+        response = Mock(spec=requests.Response)
+        response.json.return_value = {
+            u'latitude': 39.8227,
+            u'state/province': u'Indiana',
+            u'ip': u'209.43.28.60',
+            u'longitude': -86.145,
+            u'country': u'United States'
+        }
+        mock_get.return_value = None
         mock_open.return_value = None
 
         with self.client.get_event_writer() as writer:
@@ -201,11 +212,26 @@ class FileHubClientTest(unittest.TestCase):
             writer._sock.readline.return_value = '200 OK'
 
             events = list(make_timeline())
+            event_count = len(events)
+
+            loc_err = events.pop()
+            with self.assertRaises(IOError):
+                loc_err.location = LocationDetails.from_geo('209.43.28.60')
+
+            writer.send(loc_err)
+
+            mock_get.return_value = response
+
             for event in events:
-                event.location = LocationDetails(123, 456)
+                event.location = LocationDetails.from_geo('209.43.28.60')
                 writer.send(event)
 
-            self.assertEqual(len(events), writer._sock.write.call_count)
+            self.assertEqual(event_count, writer._sock.write.call_count)
+
+        self.assertEqual(event_count, mock_get.call_count)
+        self.assertEqual(
+            '%s?ip=209.43.28.60' % GEO_URL,
+            mock_get.call_args[0][0])
 
     @patch.object(Client, 'get_event_writer')
     def test_send_events(self, mock_get_event_writer):
