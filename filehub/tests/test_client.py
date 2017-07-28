@@ -220,18 +220,20 @@ class FileHubClientTest(unittest.TestCase):
 
             writer.send(loc_err)
 
+            self.assertEqual(
+                '%s?ip=209.43.28.60' % GEO_URL,
+                mock_get.call_args[0][0])
+
             mock_get.return_value = response
 
             for event in events:
-                event.location = LocationDetails.from_geo('209.43.28.60')
+                event.location = LocationDetails.from_geo()
                 writer.send(event)
 
             self.assertEqual(event_count, writer._sock.write.call_count)
 
         self.assertEqual(event_count, mock_get.call_count)
-        self.assertEqual(
-            '%s?ip=209.43.28.60' % GEO_URL,
-            mock_get.call_args[0][0])
+        self.assertEqual(GEO_URL, mock_get.call_args[0][0])
 
     @patch.object(Client, 'get_event_writer')
     def test_send_events(self, mock_get_event_writer):

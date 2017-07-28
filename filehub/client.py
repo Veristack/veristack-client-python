@@ -304,6 +304,7 @@ class EventWriter(object):
     def __init__(self, client):
         self.token = client.token
         self.url = client.url
+        self.verify = client.verify
         self._sock = None
 
     def __enter__(self):
@@ -317,7 +318,15 @@ class EventWriter(object):
     def open(self):
         """Open the connection to the receiver."""
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        ssl.wrap_socket(self._sock)
+        ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+        if not self.verify:
+            ctx.verify_mode = ssl.CERT_NONE
+            ctx.check_hostname = False
+        else:
+            ctx.verify_mode = ssl.CERT_REQUIRED
+            ctx.check_hostname = True
+        
+        self._sock = ctx.wrap_socket(self._sock)
         self._sock.connect((urlparse(self.url).netloc, 41677))
         self._sock = self._sock.makefile('rw')
 
@@ -330,7 +339,7 @@ class EventWriter(object):
         # Send client banner.
         self._sock.write(
             'HELO 1.0 client.js %s Bearer %s\r\n' %
-            (time.time(), base64.b64encode(self.token['access_token'])))
+            (time.time(), self.token['access_token']))
         self._sock.flush()
 
         response = self._sock.readline().strip()
@@ -372,8 +381,8 @@ class EventWriter(object):
 class Client(_OAuth2Session):
     """Client for communicating to FileHub 2.0 (Govern) API."""
 
-    def __init__(self, url, uid, refresh_token_callback=None,
-                 *args, **kwargs):
+    def __init__(self, url, uid, *args, refresh_token_callback=None,
+                 verify=True, **kwargs):
         self.client_secret = kwargs.pop('client_secret', None)
         if self.client_secret is None and 'token' not in kwargs:
             raise AssertionError('Must provide token or client_secret')
@@ -382,6 +391,7 @@ class Client(_OAuth2Session):
         self.refresh_token_callback = refresh_token_callback
         super(Client, self).__init__(
             *args, client=JWTApplicationClient(kwargs['client_id']), **kwargs)
+        self.verify = verify
 
     def fetch_token(self, **kwargs):
         payload = {'device': {'uid': self.uid}}
@@ -396,6 +406,8 @@ class Client(_OAuth2Session):
 
     def refresh_token(self, **kwargs):
         kwargs.setdefault('client_id', self.client_id)
+        kwargs.setdefault('refresh_token', self.token['refresh_token'])
+        kwargs.setdefault('access_token', self.token['access_token'])
         payload = {'device': {'uid': self.uid}}
         return super(Client, self).refresh_token(
             urljoin(self.url, '/oauth2/token/'),
@@ -433,7 +445,7 @@ class Client(_OAuth2Session):
         try:
             writer.open()
         except IOError as e:
-            if 'Authentication failed' not in e.args[0]:
+            if 'Authentication failed' == e.args[0]:
                 raise
             writer.token = self.refresh_token()
             writer.open()

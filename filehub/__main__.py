@@ -2,7 +2,9 @@
 
 from __future__ import absolute_import
 
+import os
 import hashlib
+import json
 import random
 import copy
 import time
@@ -11,8 +13,7 @@ from os.path import join as pathjoin
 
 from docopt import docopt
 from faker import Faker
-from schema import Schema
-from schema import Use
+from schema import Schema, Use, And, Or, SchemaError, Optional
 
 from six import PY3
 
@@ -240,24 +241,63 @@ def main(opt):
     the filehub application.
 
     Usage:
-        genny [-p PORT] [-H HOST] [-c COUNT] [-s SLEEP] [-o CONNECTIONS]
+        genny [--client-id=ID] [-p PORT] [-H HOST] [-c COUNT]
+              [--client-secret=SECRET|--token=TOKEN] [--token-file=FILE]
+              [-s SLEEP] [-o CONNECTIONS]
 
     Options:
-        -H --host HOST    Host to connect to [default: localhost]
-        -p --port PORT    TCP port to connect to on HOST [default: 41666]
-        -c --count COUNT  Number of messages to generate/send [default: 0]
-        -s --sleep SLEEP  Seconds to sleep between messages [default: 0]
-        -o --connections CONNECTIONS    Number of clients to send messages
+        -i --client-id=ID      OAuth2 CLIENT_ID
+        -e --client-secret=SECRET  OAuth2 CLIENT_SECRET
+        -t --token=TOKEN    OAuth2 Token
+        -f --token-file=FILE  The file in which to read/write the token.
+        -H --host HOST      Host to connect to [default: localhost]
+        -p --port PORT      TCP port to connect to on HOST [default: 41666]
+        -c --count COUNT    Number of messages to generate/send [default: 0]
+        -s --sleep SLEEP    Seconds to sleep between messages [default: 0]
+        -o --connections=CONNECTIONS    Number of clients to send messages
                                         [default: 1]
     """
-    clients = []
-    client = Client(url=opt['--host'], uid='genny')
 
-    # Create a lot of connections.
-    for _ in range(0, opt['--connections']):
-        clients.append(client.get_event_writer())
+    kwargs = {
+        'client_id': opt['--client-id'],
+        'url': opt['--host'],
+        'uid': 'genny',
+    }
+    if opt['--client-secret']:
+        kwargs['client_secret'] = opt['--client-secret']
 
-    print("Clients Connected: " + str(len(clients)))
+    if opt['--token-file']:
+        try:
+            with open(opt['--token-file'], 'r') as f:
+                kwargs['token'] = json.loads(f.read())
+        except IOError:
+            pass
+
+    if opt['--token']:
+        kwargs['token'] = opt['--token']
+
+    if 'client_secret' not in kwargs and 'token' not in kwargs:
+        exit('Client secret or token required.')
+
+    if os.environ.get('VERIFY_SSL_CERTIFICATES',
+                          None) in ('no', 'false', 'off'):
+        kwargs['verify'] = False
+
+    client = Client(**kwargs)
+
+    if 'token' not in kwargs:
+        client.fetch_token()
+
+    if opt['--token-file']:
+        with open(opt['--token-file'], 'w') as f:
+            f.write(json.dumps(client.token))
+
+    # Create (potentially) a lot of connections.
+    clients = [
+        client.get_event_writer() for _ in range(opt['--connections'])
+    ]
+
+    print("Clients Connected: %s" % len(clients))
 
     handle_rand(clients, opt)
 
@@ -269,12 +309,20 @@ def main(opt):
 if __name__ == '__main__':
     options = docopt(main.__doc__)
 
-    options = Schema({
-        '--port': Use(int),
-        '--count': Use(int),
-        '--sleep': Use(float),
-        '--connections': Use(int),
-        object: object,
-    }).validate(options)
+    try:
+        options = Schema({
+            '--client-id': And(str, error='--client-id is required'),
+            '--token-file': Or(None,
+                               Use(str, error='--token-file should be path')),
+            '--host': str,
+            '--port': Use(int),
+            '--count': Use(int),
+            '--sleep': Use(float),
+            '--connections': Use(int),
+
+            object: object,
+        }).validate(options)
+    except SchemaError as e:
+        exit(e.args[0])
 
     main(options)
