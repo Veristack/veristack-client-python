@@ -29,7 +29,7 @@ from requests_oauthlib import OAuth2Session as _OAuth2Session
 
 
 GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:jwt-bearer'
-GEO_URL = "https://geo.getfilehub.com/"
+GEO_URL = 'https://geo.getfilehub.com/'
 OS = platform.system()
 HOSTNAME = socket.gethostname()
 USERNAME = getpass.getuser()
@@ -144,7 +144,7 @@ class FileDetails(object):
             'md5': self.md5,
         }
         if self.fingerprint:
-            d["fingerprint"] = self.fingerprint
+            d['fingerprint'] = self.fingerprint
         if self.extra:
             d.update(self.extra)
         return json.dumps(d)
@@ -272,16 +272,16 @@ class Event(object):
                 callable(getattr(self.location, 'to_json', None))), \
             'location must be LocationDetails or None'
         d = {
-            "timestamp": self.timestamp,
-            "device": self.device.to_json(),
-            "person": self.person.to_json(),
-            "action_type": self.action_type,
+            'timestamp': self.timestamp,
+            'device': self.device.to_json(),
+            'person': self.person.to_json(),
+            'action_type': self.action_type,
         }
         if self.location:
-            d["location"] = self.location.to_json()
-        d["file1"] = self.files[0].to_json()
+            d['location'] = self.location.to_json()
+        d['file1'] = self.files[0].to_json()
         if len(self.files) == 2:
-            d["file2"] = self.files[1].to_json()
+            d['file2'] = self.files[1].to_json()
         if self.extra:
             d.update(self.extra)
         return json.dumps(d)
