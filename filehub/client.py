@@ -305,7 +305,7 @@ class Event(object):
             'action_type': self.action_type,
         }
         if self.location:
-            self.update(self.location.to_dict())
+            d.update(self.location.to_dict())
         d['file1'] = self.files[0].to_dict()
         if len(self.files) == 2:
             d['file2'] = self.files[1].to_dict()
@@ -407,8 +407,8 @@ class EventWriter(object):
 class Client(_OAuth2Session):
     """Client for communicating to FileHub 2.0 (Govern) API."""
 
-    def __init__(self, url, uid, *args, refresh_token_callback=None,
-                 verify=True, **kwargs):
+    def __init__(self, url, uid, refresh_token_callback=None,
+                 verify=True, *args, **kwargs):
         self.client_secret = kwargs.pop('client_secret', None)
         if self.client_secret is None and 'token' not in kwargs:
             raise AssertionError('Must provide token or client_secret')
@@ -432,8 +432,10 @@ class Client(_OAuth2Session):
 
     def refresh_token(self, **kwargs):
         kwargs.setdefault('client_id', self.client_id)
-        kwargs.setdefault('refresh_token', self.token['refresh_token'])
-        kwargs.setdefault('access_token', self.token['access_token'])
+        kwargs.setdefault('refresh_token',
+                           self.token.get('refresh_token', None))
+        kwargs.setdefault('access_token',
+                          self.token.get('access_token', None))
         payload = {'device': {'uid': self.uid}}
         return super(Client, self).refresh_token(
             urljoin(self.url, '/oauth2/token/'),
