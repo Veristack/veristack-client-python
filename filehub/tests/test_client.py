@@ -1,5 +1,6 @@
 """FileHub 2.0 (Govern) client tests."""
 import requests
+import tempfile
 import unittest
 
 from io import StringIO
@@ -9,8 +10,22 @@ from oauthlib.oauth2 import TokenExpiredError
 from requests_oauthlib import OAuth2Session
 
 from filehub.client import Client
+from filehub.client import hash_path
 from filehub.client import JWTApplicationClient
 from filehub.__main__ import make_timeline
+
+
+class HashPathTest(unittest.TestCase):
+    """Test hash_path."""
+
+    def test_hash_path(self):
+        """Test hashing the file."""
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(b'hello world')
+            f.flush()
+            h = hash_path(f.name)
+
+        self.assertEqual('5eb63bbbe01eeed093cb22bb8f5acdc3', h)
 
 
 class JWTApplicationClientTest(unittest.TestCase):

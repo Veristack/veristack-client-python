@@ -63,7 +63,7 @@ def hash_path(path):
     md5 = hashlib.md5()
     with open(path, 'r') as f:
         while True:
-            block = f.read()
+            block = f.read().encode('utf-8')
             if not block:
                 break
             md5.update(block)
