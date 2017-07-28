@@ -95,6 +95,7 @@ class FileDetails(object):
 
     Provides validation and serialization.
     """
+
     def __init__(self, path=None, uid=None, directory=None, name=None,
                  size=None, md5=None, fingerprint=None, extra=None):
         self.path = path
@@ -110,7 +111,7 @@ class FileDetails(object):
     def from_path(path):
         """Instantiate a FileDetails class given a file system path."""
         kwargs = {
-            'uid': hashlib.md5(bytes(path, 'ascii')).hexdigest(),
+            'uid': hashlib.md5(path.encode('ascii')).hexdigest(),
             'size': getsize(path),
             'md5': hash_path(path),
         }

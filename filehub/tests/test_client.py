@@ -11,6 +11,7 @@ from requests_oauthlib import OAuth2Session
 
 from filehub.client import Client
 from filehub.client import EventWriter
+from filehub.client import FileDetails
 from filehub.client import GEO_URL
 from filehub.client import hash_path
 from filehub.client import JWTApplicationClient
@@ -47,6 +48,25 @@ class JWTApplicationClientTest(unittest.TestCase):
             mock_request.call_args[0][0])
         self.assertEqual('client123', mock_request.call_args[1]['client_id'])
         self.assertIsNone(client.prepare_request_uri())
+
+
+class FileDetailsTest(unittest.TestCase):
+    """Test FileDetails."""
+
+    @patch('filehub.client.hash_path')
+    @patch('filehub.client.getsize')
+    def test_file_details(self, mock_size, mock_hash):
+        """Test file details."""
+        mock_size.return_value = 1024
+        mock_hash.return_value = '7a654c5b54645'
+
+        fd = FileDetails.from_path('/folder/file.txt')
+
+        self.assertEquals('/folder/file.txt', fd.path)
+        try:
+            fd.to_json()
+        except:
+            self.fail('Should not raise an exception')
 
 
 class FileHubClientTest(unittest.TestCase):
