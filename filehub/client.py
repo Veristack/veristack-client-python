@@ -34,7 +34,6 @@ OS = platform.system()
 HOSTNAME = socket.gethostname()
 USERNAME = getpass.getuser()
 
-
 ACT_CREATE = 1
 ACT_READ = 2
 ACT_WRITE = 3
@@ -61,9 +60,9 @@ DEVICE_TYPES = (
 def hash_path(path):
     """Perform an MD5 sum of the given path."""
     md5 = hashlib.md5()
-    with open(path, 'r') as f:
+    with open(path, 'rb') as f:
         while True:
-            block = f.read().encode('utf-8')
+            block = f.read()
             if not block:
                 break
             md5.update(block)
@@ -96,9 +95,9 @@ class FileDetails(object):
 
     Provides validation and serialization.
     """
-
-    def __init__(self, uid=None, directory=None, name=None, size=None,
-                 md5=None, fingerprint=None, extra=None):
+    def __init__(self, path=None, uid=None, directory=None, name=None,
+                 size=None, md5=None, fingerprint=None, extra=None):
+        self.path = path
         self.uid = uid
         self.directory = directory
         self.name = name
@@ -126,6 +125,8 @@ class FileDetails(object):
 
     @path.setter
     def path(self, value):
+        if value is None:
+            return
         self.directory = dirname(value)
         self.name = basename(value)
 
