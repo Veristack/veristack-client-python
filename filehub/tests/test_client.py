@@ -1,5 +1,4 @@
 """FileHub 2.0 (Govern) client tests."""
-import json
 import requests
 import unittest
 
@@ -56,6 +55,7 @@ class FileHubClientTest(unittest.TestCase):
 
         receiver = self.client.get_event_writer()
 
+        self.assertIsNotNone(receiver._sock)
         self.assertTrue(mock_socket.return_value.connect.called)
         self.assertEqual(
             'filehub.com',

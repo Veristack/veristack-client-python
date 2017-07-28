@@ -14,6 +14,14 @@ pylint:
   disable:
     # Arguments differ
     - W0221
+    # Variable naming
+    - C0103
+    # Too many instance attributes
+    - R0902
+    # Too few public methods
+    - R0903
+    # Too many arguments
+    - R0913
 
 mccabe:
   options:

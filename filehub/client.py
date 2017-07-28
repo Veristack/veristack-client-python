@@ -2,21 +2,20 @@
 
 from __future__ import absolute_import
 
-import os
 import base64
+import hashlib
 import json
+import platform
 import socket
 import ssl
 import time
-import hashlib
-import requests
-import platform
-import getpass
-
-import jwt
 
 from os.path import join as pathjoin
 from os.path import dirname, basename, getsize
+
+import getpass
+import jwt
+import requests
 
 from six.moves.urllib.parse import urljoin  # noqa
 from six.moves.urllib.parse import urlparse  # noqa
@@ -61,7 +60,7 @@ DEVICE_TYPES = (
 
 def hash_path(path):
     """Perform an MD5 sum of the given path."""
-    md5 = haslib.md5()
+    md5 = hashlib.md5()
     with open(path, 'r') as f:
         while True:
             block = f.read()
@@ -93,11 +92,11 @@ class JWTApplicationClient(_Client):
 
 
 class FileDetails(object):
-    """
-    File details.
+    """File details.
 
     Provides validation and serialization.
     """
+
     def __init__(self, uid=None, directory=None, name=None, size=None,
                  md5=None, fingerprint=None, extra=None):
         self.uid = uid
@@ -110,9 +109,7 @@ class FileDetails(object):
 
     @staticmethod
     def from_path(path):
-        """
-        Instantiate a FileDetails class given a file system path.
-        """
+        """Instantiate a FileDetails class given a file system path."""
         kwargs = {
             'uid': hashlib.md5(bytes(path, 'ascii')).hexdigest(),
             'size': getsize(path),
@@ -124,6 +121,7 @@ class FileDetails(object):
 
     @property
     def path(self):
+        """Full path of the file."""
         return pathjoin(self.directory, self.name)
 
     @path.setter
@@ -132,6 +130,7 @@ class FileDetails(object):
         self.name = basename(value)
 
     def to_json(self):
+        """Convert to json."""
         assert self.uid, 'uid must be set'
         assert self.size, 'size must be set'
         assert self.directory, 'directory must be set'
@@ -152,11 +151,11 @@ class FileDetails(object):
 
 
 class PersonDetails(object):
-    """
-    Person details.
+    """Person details.
 
     Provides validation and serialization. Detects username.
     """
+
     def __init__(self, username=None, fullname=None, email=None, extra=None):
         self.username = username or USERNAME
         self.fullname = fullname
@@ -164,6 +163,7 @@ class PersonDetails(object):
         self.extra = extra or {}
 
     def to_json(self):
+        """Convert to json."""
         assert self.username, 'username must be set'
         assert self.fullname, 'fullname must be set'
         assert self.email, 'email must be set'
@@ -178,11 +178,11 @@ class PersonDetails(object):
 
 
 class DeviceDetails(object):
-    """
-    Device details.
+    """Device details.
 
     Provides valiation and serialization. Detects the hostname and os details.
     """
+
     def __init__(self, device_type=None, name=None, addr=None, os=None,
                  extra=None):
         self.device_type = device_type
@@ -192,6 +192,7 @@ class DeviceDetails(object):
         self.extra = extra or {}
 
     def to_json(self):
+        """Convert to json."""
         assert self.device_type in DEVICE_TYPES, 'invalid device_type'
         assert self.name, 'name must be set'
         assert self.addr, 'addr must be set'
@@ -208,12 +209,12 @@ class DeviceDetails(object):
 
 
 class LocationDetails(object):
-    """
-    Geographic location details.
+    """Geographic location details.
 
     Can call the FileHub geo service to obtain lat/long. Provides validation
     and serialization.
     """
+
     def __init__(self, latitude=None, longitude=None):
         self.latitude = latitude
         self.longitude = longitude
@@ -227,8 +228,9 @@ class LocationDetails(object):
         geo = requests.get(url).json()
         return LocationDetails(latitude=geo.get('latitude'),
                                longitude=geo.get('longitude'))
-    
+
     def to_json(self):
+        """Convert to json."""
         assert self.latitude, 'latitude must be set'
         assert self.longitude, 'longitude must be set'
         return json.dumps({
@@ -238,11 +240,11 @@ class LocationDetails(object):
 
 
 class Event(object):
-    """
-    Represent an individual audit event.
+    """Represent an individual audit event.
 
     Provides validation and serialization of event message.
     """
+
     def __init__(self, action_type=None, device=None, timestamp=None,
                  person=None, location=None, files=None, extra=None):
         self.action_type = action_type
@@ -254,6 +256,7 @@ class Event(object):
         self.extra = extra or {}
 
     def to_json(self):
+        """Convert to json."""
         assert len(self.files) in (1, 2), 'must provide one or two files'
         assert all(map(lambda f: callable(getattr(f, 'to_json', None)),
                        self.files)), 'all files must have `.to_json()` method'
@@ -285,25 +288,28 @@ class Event(object):
 
 
 class EventWriter(object):
-    """
-    Stream events to FileHub.
+    """Stream events to FileHub.
 
     Maintains a persistent connection for sending events. Can be used as a
     context manager to ensure the connection is closed. Checks server response
     and raises `IOError` for any protocol errors.
     """
+
     def __init__(self, client):
         self.token = client.token
         self.url = client.url
         self._sock = None
 
     def __enter__(self):
+        """Handle enter."""
         return self
 
     def __exit__(self, *args):
+        """Handle exit."""
         self.close()
 
     def open(self):
+        """Open the connection to the receiver."""
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         ssl.wrap_socket(self._sock)
         self._sock.connect((urlparse(self.url).netloc, 41677))
@@ -332,6 +338,7 @@ class EventWriter(object):
             raise IOError('Connect failed: %s' % response)
 
     def send(self, event):
+        """Send the event to the receiver."""
         assert isinstance(event, Event), 'Must send Event'
         self._sock.write('PUT %s\r\n' % json.dumps(event))
         self._sock.flush()
@@ -341,6 +348,7 @@ class EventWriter(object):
             raise IOError('Event send failed: %s' % response)
 
     def close(self):
+        """Close the connection to the receiver."""
         if self._sock is None:
             raise IOError('Already closed')
 
@@ -414,12 +422,12 @@ class Client(_OAuth2Session):
         return self.get(url).json().get('results')
 
     def get_event_writer(self):
-        """Returns a persistent connection to the receiver."""
+        """Return a persistent connection to the receiver."""
         writer = EventWriter(self)
         try:
             writer.open()
         except IOError as e:
-            if not 'Authentication failed' in e.args[0]:
+            if 'Authentication failed' not in e.args[0]:
                 raise
             writer.token = self.refresh_token()
             writer.open()

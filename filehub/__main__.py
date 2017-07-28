@@ -7,24 +7,23 @@ import random
 import copy
 import time
 
+from os.path import join as pathjoin
+
 from docopt import docopt
 from faker import Faker
 from schema import Schema
 from schema import Use
 
-from os.path import join as pathjoin
-from os.path import dirname, basename
-
 from six import PY3
 
 from filehub import (
-    Client, DeviceDetails, PersonDetails, LocationDetails, FileDetails, Event,
+    Client, DeviceDetails, PersonDetails, FileDetails, Event,
     DEV_CLOUD, DEVICE_TYPES, ACT_CREATE, ACT_WRITE, ACT_MOVE, ACT_COPY,
     ACT_READ, ACT_DELETE,
 )
 
 if not PY3:
-    def bytes(d, enc=None):
+    def bytes(d, enc=None):  # noqa
         return d
 
 
@@ -107,10 +106,9 @@ DEVICES = [
     }),
 ]
 
+
 def make_path():
-    """
-    Generate a random path.
-    """
+    """Generate a random path."""
     path = '/' + '/'.join(
         random.sample(PATH_PARTS, random.randint(0, len(PATH_PARTS))))
     return path
@@ -120,7 +118,7 @@ PATHS = [make_path() for _ in range(10)]
 
 
 def make_file():
-    ''' Generate a file resource. '''
+    """Generate a file resource."""
     # Don't make paths completely random, we want some overlap.
     directory = random.choice(PATHS)
     name = FAKE.file_name()
@@ -128,7 +126,8 @@ def make_file():
     # TODO: this was used with fingerprinting, but to remove the dependency
     # on duster, I excluded this. For fingerprint support, generate some
     # bodies/fingerprints and embed them as constants above.
-    # body = '\r\n\r\n'.join([FAKE.text() for i in range(random.randint(1, 10))])
+    # body =
+    # '\r\n\r\n'.join([FAKE.text() for i in range(random.randint(1, 10))])
     size = random.randint(0, 1024 ** 3)
     # The UID is derived from the path unless the platform provides a unique
     # identifier (google drive does, onedrive does, genny uses the path).
@@ -139,6 +138,7 @@ def make_file():
 
 
 def make_event(action_type, device, file, timestamp):
+    """Create an audit event."""
     if action_type == ACT_WRITE:
         # Simulate writing data to the file. Create a new randomized file and
         # copy _some_ of it's attributes.
@@ -183,6 +183,7 @@ def make_event(action_type, device, file, timestamp):
 
 
 def make_timeline(device=None, file=None, timestamp=None):
+    """Create a timeline of audit activity."""
     if not device:
         device = random.choice(DEVICES)
     if not file:
@@ -195,7 +196,7 @@ def make_timeline(device=None, file=None, timestamp=None):
     # And a create action.
     yield make_event(ACT_CREATE, device, file, timestamp)
     # Create a series of events:
-    for i in range(random.randint(5, 8)):
+    for _ in range(random.randint(5, 8)):
         # Increment time by 10s-4d
         timestamp += random.randint(10, 345600)
         # Only a subset of actions make sense here.
@@ -216,7 +217,7 @@ def make_timeline(device=None, file=None, timestamp=None):
 
 
 def handle_rand(clients, opt):
-    # Send a bunch of messages.
+    """Send a bunch of messages."""
     count = 0
     while True:
         for event in make_timeline():
@@ -228,8 +229,7 @@ def handle_rand(clients, opt):
 
 
 def main(opt):
-    """
-    Genny
+    """Genny.
 
     Generates audit data for FileHub. The data is injected into the receiver.
     Receiver adds data to the Hot model, and from there it is ingested into
@@ -247,13 +247,14 @@ def main(opt):
         -p --port PORT    TCP port to connect to on HOST [default: 41666]
         -c --count COUNT  Number of messages to generate/send [default: 0]
         -s --sleep SLEEP  Seconds to sleep between messages [default: 0]
-        -o --connections CONNECTIONS    Number of clients to send messages [default: 1]
+        -o --connections CONNECTIONS    Number of clients to send messages
+                                        [default: 1]
     """
-
-    client = Client()
+    clients = []
+    client = Client(url=opt['--host'], uid='genny')
 
     # Create a lot of connections.
-    for i in range(0, opt['--connections']):
+    for _ in range(0, opt['--connections']):
         clients.append(client.get_event_writer())
 
     print("Clients Connected: " + str(len(clients)))
@@ -266,14 +267,14 @@ def main(opt):
 
 
 if __name__ == '__main__':
-    opt = docopt(main.__doc__)
+    options = docopt(main.__doc__)
 
-    opt = Schema({
+    options = Schema({
         '--port': Use(int),
         '--count': Use(int),
         '--sleep': Use(float),
         '--connections': Use(int),
         object: object,
-    }).validate(opt)
+    }).validate(options)
 
-    main(opt)
+    main(options)
