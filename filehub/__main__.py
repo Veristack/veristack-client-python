@@ -3,6 +3,8 @@
 from __future__ import absolute_import
 
 import os
+from os.path import join as pathjoin
+
 import hashlib
 import json
 import random
@@ -10,11 +12,10 @@ import copy
 import time
 
 from pprint import pprint
-from os.path import join as pathjoin
 
 from docopt import docopt
 from faker import Faker
-from schema import Schema, Use, And, Or, SchemaError, Optional
+from schema import Schema, Use, And, Or, SchemaError
 
 from six import PY3
 
@@ -114,6 +115,7 @@ def make_path():
     path = '/' + '/'.join(
         random.sample(PATH_PARTS, random.randint(0, len(PATH_PARTS))))
     return path
+
 
 # Create 100 random paths to work with.
 PATHS = [make_path() for _ in range(10)]
@@ -259,7 +261,6 @@ def main(opt):
         -o --connections=CONNECTIONS    Number of clients to send messages
                                         [default: 1]
     """
-
     kwargs = {
         'client_id': opt['--client-id'],
         'url': opt['--host'],
@@ -282,7 +283,7 @@ def main(opt):
         exit('Client secret or token required.')
 
     if os.environ.get('VERIFY_SSL_CERTIFICATES',
-                          None) in ('no', 'false', 'off'):
+                      None) in ('no', 'false', 'off'):
         kwargs['verify'] = False
 
     client = Client(**kwargs)

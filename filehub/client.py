@@ -472,7 +472,7 @@ class Client(_OAuth2Session):
         try:
             writer.open()
         except IOError as e:
-            if 'Authentication failed: 401 Unauthorized' == e.args[0]:
+            if e.args[0] == 'Authentication failed: 401 Unauthorized':
                 raise
             writer.token = self.refresh_token()
             writer.open()
