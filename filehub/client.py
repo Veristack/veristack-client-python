@@ -2,7 +2,6 @@
 
 from __future__ import absolute_import
 
-import base64
 import hashlib
 import json
 import platform
@@ -351,7 +350,7 @@ class EventWriter(object):
         else:
             ctx.verify_mode = ssl.CERT_REQUIRED
             ctx.check_hostname = True
-        
+
         self._sock = ctx.wrap_socket(self._sock)
         self._sock.connect((urlparse(self.url).netloc, 41677))
         self._sock = self._sock.makefile('rw')
@@ -433,7 +432,7 @@ class Client(_OAuth2Session):
     def refresh_token(self, **kwargs):
         kwargs.setdefault('client_id', self.client_id)
         kwargs.setdefault('refresh_token',
-                           self.token.get('refresh_token', None))
+                          self.token.get('refresh_token', None))
         kwargs.setdefault('access_token',
                           self.token.get('access_token', None))
         payload = {'device': {'uid': self.uid}}
@@ -473,7 +472,7 @@ class Client(_OAuth2Session):
         try:
             writer.open()
         except IOError as e:
-            if 'Authentication failed' == e.args[0]:
+            if 'Authentication failed: 401 Unauthorized' == e.args[0]:
                 raise
             writer.token = self.refresh_token()
             writer.open()

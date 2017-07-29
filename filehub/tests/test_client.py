@@ -1,5 +1,6 @@
 """FileHub 2.0 (Govern) client tests."""
 import requests
+import ssl
 import tempfile
 import unittest
 
@@ -69,8 +70,8 @@ class FileDetailsTest(unittest.TestCase):
             self.fail('Should not raise an exception')
 
 
-class FileHubClientTest(unittest.TestCase):
-    """Test FileHubClient."""
+class ClientTest(unittest.TestCase):
+    """Test Client."""
 
     def setUp(self):
         self.client = Client(
@@ -80,35 +81,46 @@ class FileHubClientTest(unittest.TestCase):
             url='https://filehub.com/',
         )
 
+    def test_invalid_init(self):
+        """Test construction with missing parameters."""
+        with self.assertRaises(AssertionError):
+            Client(url='https://filehub.com/', uid='abcd')
+
     @patch('socket.socket')
-    @patch('ssl.wrap_socket')
+    @patch.object(ssl.SSLContext, 'wrap_socket')
     def test_connect_receiver(self, mock_wrap, mock_socket):
         """Test connecting to receiver."""
         mock_file = Mock(spec=StringIO)
         mock_file.readline.side_effect = ['Banner', '200 OK']
-        mock_socket.return_value.makefile.return_value = mock_file
-        mock_wrap.return_value = None
+        mock_socket.return_value = None
+        mock_wrap.return_value.connect.return_value = None
+        mock_wrap.return_value.makefile.return_value = mock_file
 
         self.client.token['access_token'] = b'token123'
 
         receiver = self.client.get_event_writer()
 
         self.assertIsNotNone(receiver._sock)
-        self.assertTrue(mock_socket.return_value.connect.called)
+        self.assertTrue(mock_wrap.return_value.connect.called)
         self.assertEqual(
             'filehub.com',
-            mock_socket.return_value.connect.call_args[0][0][0])
+            mock_wrap.return_value.connect.call_args[0][0][0])
         self.assertTrue(mock_file.write.called)
-        self.assertIn('dG9rZW4xMjM=', mock_file.write.call_args[0][0])
+        self.assertIn('token123', mock_file.write.call_args[0][0])
 
     @patch('socket.socket')
-    @patch('ssl.wrap_socket')
-    def test_connect_receiver_no_banner(self, mock_wrap, mock_socket):
+    @patch.object(ssl.SSLContext, 'wrap_socket')
+    @patch.object(Client, 'refresh_token')
+    def test_connect_receiver_no_banner(self, mock_refresh, mock_wrap,
+                                        mock_socket):
         """Test connecting to receiver with no banner."""
         mock_file = Mock(spec=StringIO)
         mock_file.readline.return_value = ''
-        mock_socket.return_value.makefile.return_value = mock_file
-        mock_wrap.return_value = None
+        mock_socket.return_value = None
+        mock_wrap.return_value.connect.return_value = None
+        mock_wrap.return_value.makefile.return_value = mock_file
+
+        self.client.verify = False
 
         with self.assertRaises(IOError) as e:
             self.client.get_event_writer()
@@ -116,13 +128,19 @@ class FileHubClientTest(unittest.TestCase):
         self.assertEqual('Server banner not received', str(e.exception))
 
     @patch('socket.socket')
-    @patch('ssl.wrap_socket')
-    def test_connect_receiver_error_response(self, mock_wrap, mock_socket):
+    @patch.object(ssl.SSLContext, 'wrap_socket')
+    @patch.object(Client, 'refresh_token')
+    def test_connect_receiver_error_response(self, mock_refresh, mock_wrap,
+                                             mock_socket):
         """Test connecting to receiver with error response."""
         mock_file = Mock(spec=StringIO)
-        mock_file.readline.side_effect = ['Banner', '400 BAD REQUEST']
-        mock_socket.return_value.makefile.return_value = mock_file
-        mock_wrap.return_value = None
+        mock_file.readline.side_effect = [
+            'Banner', '400 BAD REQUEST',
+            'Banner', '400 BAD REQUEST'
+        ]
+        mock_socket.return_value = None
+        mock_wrap.return_value.connect.return_value = None
+        mock_wrap.return_value.makefile.return_value = mock_file
 
         self.client.token['access_token'] = b'token123'
 
@@ -130,6 +148,25 @@ class FileHubClientTest(unittest.TestCase):
             self.client.get_event_writer()
 
         self.assertEqual('Connect failed: 400 BAD REQUEST', str(e.exception))
+
+    @patch('socket.socket')
+    @patch.object(ssl.SSLContext, 'wrap_socket')
+    @patch.object(Client, 'refresh_token')
+    def test_connect_receiver_bad_auth(self, mock_refresh, mock_wrap,
+                                       mock_socket):
+        """Test connecting to receiver with bad authentication."""
+        mock_file = Mock(spec=StringIO)
+        mock_file.readline.side_effect = ['Banner', '401 Unauthorized']
+        mock_socket.return_value = None
+        mock_wrap.return_value.connect.return_value = None
+        mock_wrap.return_value.makefile.return_value = mock_file
+
+        self.client.token['access_token'] = b'token123'
+
+        with self.assertRaises(IOError) as e:
+            self.client.get_event_writer()
+
+        self.assertEqual('Authentication failed: 401 Unauthorized', str(e.exception))
 
     @patch.object(OAuth2Session, 'request')
     def test_request(self, mock_request):
