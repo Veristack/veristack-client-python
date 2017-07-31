@@ -10,13 +10,11 @@ from mock.mock import Mock, MagicMock
 from oauthlib.oauth2 import TokenExpiredError
 from requests_oauthlib import OAuth2Session
 
-from filehub.client import Client
-from filehub.client import EventWriter
-from filehub.client import FileDetails
-from filehub.client import GEO_URL
-from filehub.client import hash_path
-from filehub.client import JWTApplicationClient
-from filehub.client import LocationDetails
+from filehub.client import (
+    AuthenticationError, Client, EventWriter, FileDetails, GEO_URL,
+    hash_path, JWTApplicationClient, LocationDetails,
+)
+
 from filehub.__main__ import make_timeline
 
 
@@ -130,14 +128,35 @@ class ClientTest(unittest.TestCase):
     @patch('socket.socket')
     @patch.object(ssl.SSLContext, 'wrap_socket')
     @patch.object(Client, 'refresh_token')
+    def test_connect_receiver_bad_auth(self, mock_refresh, mock_wrap,
+                                       mock_socket):
+        """Test connecting to receiver with bad authentication."""
+        mock_file = Mock(spec=StringIO)
+        mock_file.readline.side_effect = [
+            'Banner', '401 Unauthorized',
+            'Banner', '401 Unauthorized'
+        ]
+        mock_socket.return_value = None
+        mock_wrap.return_value.connect.return_value = None
+        mock_wrap.return_value.makefile.return_value = mock_file
+
+        self.client.token['access_token'] = b'token123'
+
+        with self.assertRaises(AuthenticationError) as e:
+            self.client.get_event_writer()
+
+        self.assertEqual(
+            'Authentication failed: 401 Unauthorized',
+            str(e.exception))
+
+    @patch('socket.socket')
+    @patch.object(ssl.SSLContext, 'wrap_socket')
+    @patch.object(Client, 'refresh_token')
     def test_connect_receiver_error_response(self, mock_refresh, mock_wrap,
                                              mock_socket):
         """Test connecting to receiver with error response."""
         mock_file = Mock(spec=StringIO)
-        mock_file.readline.side_effect = [
-            'Banner', '400 BAD REQUEST',
-            'Banner', '400 BAD REQUEST'
-        ]
+        mock_file.readline.side_effect = ['Banner', '400 BAD REQUEST']
         mock_socket.return_value = None
         mock_wrap.return_value.connect.return_value = None
         mock_wrap.return_value.makefile.return_value = mock_file
@@ -148,25 +167,6 @@ class ClientTest(unittest.TestCase):
             self.client.get_event_writer()
 
         self.assertEqual('Connect failed: 400 BAD REQUEST', str(e.exception))
-
-    @patch('socket.socket')
-    @patch.object(ssl.SSLContext, 'wrap_socket')
-    @patch.object(Client, 'refresh_token')
-    def test_connect_receiver_bad_auth(self, mock_refresh, mock_wrap,
-                                       mock_socket):
-        """Test connecting to receiver with bad authentication."""
-        mock_file = Mock(spec=StringIO)
-        mock_file.readline.side_effect = ['Banner', '401 Unauthorized']
-        mock_socket.return_value = None
-        mock_wrap.return_value.connect.return_value = None
-        mock_wrap.return_value.makefile.return_value = mock_file
-
-        self.client.token['access_token'] = b'token123'
-
-        with self.assertRaises(IOError) as e:
-            self.client.get_event_writer()
-
-        self.assertEqual('Authentication failed: 401 Unauthorized', str(e.exception))
 
     @patch.object(OAuth2Session, 'request')
     def test_request(self, mock_request):

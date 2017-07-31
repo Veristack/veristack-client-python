@@ -68,6 +68,12 @@ def hash_path(path):
     return md5.hexdigest()
 
 
+class AuthenticationError(IOError):
+    """Authentication failed exception."""
+
+    pass
+
+
 class JWTApplicationClient(_Client):
     """Handle OAuth2 JWT Grant.
 
@@ -373,7 +379,7 @@ class EventWriter(object):
 
         self.close()
         if response.startswith('401 Unauthorized'):
-            raise IOError('Authentication failed: %s' % response)
+            raise AuthenticationError('Authentication failed: %s' % response)
         else:
             raise IOError('Connect failed: %s' % response)
 
@@ -471,11 +477,10 @@ class Client(_OAuth2Session):
         writer = EventWriter(self)
         try:
             writer.open()
-        except IOError as e:
-            if e.args[0] == 'Authentication failed: 401 Unauthorized':
-                raise
+        except AuthenticationError:
             writer.token = self.refresh_token()
             writer.open()
+
         return writer
 
     def send_events(self, events):
