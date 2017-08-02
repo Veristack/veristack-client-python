@@ -139,7 +139,7 @@ class FileDetails(object):
     def to_dict(self):
         """Convert to dictionary."""
         assert self.uid, 'uid must be set'
-        assert self.size, 'size must be set'
+        assert self.size >= 0, 'size must be set'
         assert self.directory, 'directory must be set'
         assert self.name, 'name must be set'
         assert self.md5, 'md5 must be set'
