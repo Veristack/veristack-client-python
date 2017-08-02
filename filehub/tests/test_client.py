@@ -66,6 +66,24 @@ class FileDetailsTest(unittest.TestCase):
         except:
             self.fail('Should not raise an exception')
 
+    @patch('filehub.client.hash_path')
+    @patch('filehub.client.getsize')
+    def test_file_details_with_extra(self, mock_size, mock_hash):
+        """Test file details with an extra field."""
+        mock_size.return_value = 1024
+        mock_hash.return_value = '7a654c5b54645'
+
+        fd = FileDetails.from_path('/folder/file.txt')
+        fd.extra = {'hidden': True}
+
+        self.assertEquals('/folder/file.txt', fd.path)
+        try:
+            data = fd.to_dict()
+        except:
+            self.fail('Should not raise an exception')
+
+        self.assertTrue(data.get('hidden'))
+
 
 class ClientTest(unittest.TestCase):
     """Test Client."""
