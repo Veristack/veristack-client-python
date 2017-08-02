@@ -335,7 +335,6 @@ class EventWriter(object):
     def __init__(self, client):
         self.token = client.token
         self.url = client.url
-        self.verify = client.verify
         self._sock = None
 
     def __enter__(self):
@@ -349,15 +348,8 @@ class EventWriter(object):
     def open(self):
         """Open the connection to the receiver."""
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
-        if not self.verify:
-            ctx.verify_mode = ssl.CERT_NONE
-            ctx.check_hostname = False
-        else:
-            ctx.verify_mode = ssl.CERT_REQUIRED
-            ctx.check_hostname = True
 
-        self._sock = ctx.wrap_socket(self._sock)
+        self._sock = ssl.wrap_socket(self._sock)
         self._sock.connect((urlparse(self.url).netloc, 41677))
         self._sock = self._sock.makefile('rw')
 
@@ -413,7 +405,7 @@ class Client(_OAuth2Session):
     """Client for communicating to FileHub 2.0 (Govern) API."""
 
     def __init__(self, url, uid, refresh_token_callback=None,
-                 verify=True, *args, **kwargs):
+                 *args, **kwargs):
         self.client_secret = kwargs.pop('client_secret', None)
         if self.client_secret is None and 'token' not in kwargs:
             raise AssertionError('Must provide token or client_secret')
@@ -422,7 +414,6 @@ class Client(_OAuth2Session):
         self.refresh_token_callback = refresh_token_callback
         super(Client, self).__init__(
             *args, client=JWTApplicationClient(kwargs['client_id']), **kwargs)
-        self.verify = verify
 
     def fetch_token(self, **kwargs):
         payload = {'device': {'uid': self.uid}}
