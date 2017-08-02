@@ -1,6 +1,5 @@
 """FileHub 2.0 (Govern) client tests."""
 import requests
-import ssl
 import tempfile
 import unittest
 
@@ -85,7 +84,7 @@ class ClientTest(unittest.TestCase):
             Client(url='https://filehub.com/', uid='abcd')
 
     @patch('socket.socket')
-    @patch.object(ssl.SSLContext, 'wrap_socket')
+    @patch('ssl.wrap_socket')
     def test_connect_receiver(self, mock_wrap, mock_socket):
         """Test connecting to receiver."""
         mock_file = Mock(spec=StringIO)
@@ -107,7 +106,7 @@ class ClientTest(unittest.TestCase):
         self.assertIn('token123', mock_file.write.call_args[0][0])
 
     @patch('socket.socket')
-    @patch.object(ssl.SSLContext, 'wrap_socket')
+    @patch('ssl.wrap_socket')
     @patch.object(Client, 'refresh_token')
     def test_connect_receiver_no_banner(self, mock_refresh, mock_wrap,
                                         mock_socket):
@@ -118,15 +117,13 @@ class ClientTest(unittest.TestCase):
         mock_wrap.return_value.connect.return_value = None
         mock_wrap.return_value.makefile.return_value = mock_file
 
-        self.client.verify = False
-
         with self.assertRaises(IOError) as e:
             self.client.get_event_writer()
 
         self.assertEqual('Server banner not received', str(e.exception))
 
     @patch('socket.socket')
-    @patch.object(ssl.SSLContext, 'wrap_socket')
+    @patch('ssl.wrap_socket')
     @patch.object(Client, 'refresh_token')
     def test_connect_receiver_bad_auth(self, mock_refresh, mock_wrap,
                                        mock_socket):
@@ -150,7 +147,7 @@ class ClientTest(unittest.TestCase):
             str(e.exception))
 
     @patch('socket.socket')
-    @patch.object(ssl.SSLContext, 'wrap_socket')
+    @patch('ssl.wrap_socket')
     @patch.object(Client, 'refresh_token')
     def test_connect_receiver_error_response(self, mock_refresh, mock_wrap,
                                              mock_socket):
