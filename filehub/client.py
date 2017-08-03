@@ -142,14 +142,15 @@ class FileDetails(object):
         assert self.size >= 0, 'size must be set'
         assert self.directory, 'directory must be set'
         assert self.name, 'name must be set'
-        assert self.md5, 'md5 must be set'
         d = {
             'uid': self.uid,
             'directory': self.directory,
             'name': self.name,
             'size': self.size,
-            'md5': self.md5,
         }
+        # Deleted or moved files don't necessarily have an md5 anymore.
+        if self.md5:
+            d['md5'] = self.md5
         if self.fingerprint:
             d['fingerprint'] = self.fingerprint
         if self.extra:
