@@ -2,6 +2,7 @@
 
 from __future__ import absolute_import
 
+import os
 import hashlib
 import json
 import platform
@@ -405,14 +406,17 @@ class EventWriter(object):
 class Client(_OAuth2Session):
     """Client for communicating to FileHub 2.0 (Govern) API."""
 
-    def __init__(self, url, uid, refresh_token_callback=None,
+    def __init__(self, url, uid, verify=True, refresh_token_callback=None,
                  *args, **kwargs):
         self.client_secret = kwargs.pop('client_secret', None)
         if self.client_secret is None and 'token' not in kwargs:
             raise AssertionError('Must provide token or client_secret')
         self.url = url
         self.uid = uid
+        self.verify = verify
         self.refresh_token_callback = refresh_token_callback
+        if not verify:
+            os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = 'true'
         super(Client, self).__init__(
             *args, client=JWTApplicationClient(kwargs['client_id']), **kwargs)
 
