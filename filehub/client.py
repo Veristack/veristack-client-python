@@ -351,6 +351,9 @@ class EventWriter(object):
         """Open the connection to the receiver."""
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
+        # TODO: we should honor the client.verify option here, this code was
+        # removed to ensure compatability with older versions of python's ssl
+        # library. However, we should be able to make it work in both cases.
         self._sock = ssl.wrap_socket(self._sock)
         self._sock.connect((urlparse(self.url).netloc, 41677))
         self._sock = self._sock.makefile('rw')
