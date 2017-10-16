@@ -1,5 +1,5 @@
-# filehub-2.0-client
-Client for interfacing to FileHub 2.0
+# Govern Python Client
+Client for interfacing to Govern
 
 # Usage
 ```python
