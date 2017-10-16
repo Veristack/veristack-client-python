@@ -334,10 +334,8 @@ class EventWriter(object):
     and raises `IOError` for any protocol errors.
     """
 
-    def __init__(self, client, verify=True):
-        self.token = client.token
-        self.url = client.url
-        self.verify = verify
+    def __init__(self, client):
+        self.client = client
         self._sock = None
 
     def __enter__(self):
@@ -352,7 +350,7 @@ class EventWriter(object):
         """Open the connection to the receiver."""
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        if not self.verify:
+        if not self.client.verify:
             try:
                 ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
             except AttributeError:
@@ -362,7 +360,7 @@ class EventWriter(object):
             self._sock = ctx.wrap_socket(self._sock)
         else:
             self._sock = ssl.wrap_socket(self._sock)
-        self._sock.connect((urlparse(self.url).netloc, 41677))
+        self._sock.connect((urlparse(self.client.url).netloc, 41677))
         self._sock = self._sock.makefile('rw')
 
         # Receive server banner.
@@ -374,7 +372,7 @@ class EventWriter(object):
         # Send client banner.
         self._sock.write(
             'HELO 1.0 client.js %s Bearer %s\r\n' %
-            (time.time(), self.token['access_token']))
+            (time.time(), self.client.token['access_token']))
         self._sock.flush()
 
         response = self._sock.readline().strip()
@@ -480,7 +478,7 @@ class Client(_OAuth2Session):
 
     def get_event_writer(self):
         """Return a persistent connection to the receiver."""
-        writer = EventWriter(self, verify=self.verify)
+        writer = EventWriter(self)
         try:
             writer.open()
         except AuthenticationError:
