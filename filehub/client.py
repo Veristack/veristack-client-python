@@ -334,9 +334,10 @@ class EventWriter(object):
     and raises `IOError` for any protocol errors.
     """
 
-    def __init__(self, client):
+    def __init__(self, client, verify=True):
         self.token = client.token
         self.url = client.url
+        self.verify = verify
         self._sock = None
 
     def __enter__(self):
@@ -351,10 +352,16 @@ class EventWriter(object):
         """Open the connection to the receiver."""
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        # TODO: we should honor the client.verify option here, this code was
-        # removed to ensure compatability with older versions of python's ssl
-        # library. However, we should be able to make it work in both cases.
-        self._sock = ssl.wrap_socket(self._sock)
+        if not self.verify:
+            try:
+                ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+            except AttributeError:
+                raise AssertionError('SSL verification cannot be disabled')
+            ctx.verify_mode = ssl.CERT_NONE
+            ctx.check_hostname = False
+            self._sock = ctx.wrap_socket(self._sock)
+        else:
+            self._sock = ssl.wrap_socket(self._sock)
         self._sock.connect((urlparse(self.url).netloc, 41677))
         self._sock = self._sock.makefile('rw')
 
@@ -473,7 +480,7 @@ class Client(_OAuth2Session):
 
     def get_event_writer(self):
         """Return a persistent connection to the receiver."""
-        writer = EventWriter(self)
+        writer = EventWriter(self, verify=self.verify)
         try:
             writer.open()
         except AuthenticationError:
