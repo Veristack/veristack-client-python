@@ -352,7 +352,7 @@ class EventWriter(object):
 
         if not self.client.verify:
             try:
-                ctx = ssl.SSLContext(ssl.PROTOCOL_SSLv23)
+                ctx = ssl.SSLContext()
             except AttributeError:
                 raise AssertionError('SSL verification cannot be disabled')
             ctx.verify_mode = ssl.CERT_NONE
