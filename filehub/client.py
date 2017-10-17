@@ -352,7 +352,7 @@ class EventWriter(object):
 
         if not self.client.verify:
             try:
-                ctx = ssl.SSLContext()
+                ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
             except AttributeError:
                 raise AssertionError('SSL verification cannot be disabled')
             ctx.verify_mode = ssl.CERT_NONE
@@ -421,14 +421,15 @@ class Client(_OAuth2Session):
             raise AssertionError('Must provide token or client_secret')
         self.url = url
         self.uid = uid
-        self.verify = verify
         self.refresh_token_callback = refresh_token_callback
-        if not verify:
-            os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = 'true'
         super(Client, self).__init__(
             *args, client=JWTApplicationClient(kwargs['client_id']), **kwargs)
+        self.verify = verify
+        if not verify:
+            os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = 'true'
 
     def fetch_token(self, **kwargs):
+        kwargs.setdefault('verify', self.verify)
         payload = {'device': {'uid': self.uid}}
         token = super(Client, self).fetch_token(
             urljoin(self.url, '/oauth2/token/'),
@@ -440,6 +441,7 @@ class Client(_OAuth2Session):
         return token
 
     def refresh_token(self, **kwargs):
+        kwargs.setdefault('verify', self.verify)
         kwargs.setdefault('client_id', self.client_id)
         kwargs.setdefault('refresh_token',
                           self.token.get('refresh_token', None))
@@ -457,6 +459,7 @@ class Client(_OAuth2Session):
 
     def request(self, method, url, **kwargs):
         """Overridden to do token refresh."""
+        kwargs.setdefault('verify', self.verify)
         tried_refresh = False
         while True:
             try:
@@ -474,7 +477,7 @@ class Client(_OAuth2Session):
     def fetch_authorizations(self):
         """Fetch list of authorizations."""
         url = urljoin(self.url, '/api/authorizations/')
-        return self.get(url).json().get('results')
+        return self.get(url, verify=self.verify).json().get('results')
 
     def get_event_writer(self):
         """Return a persistent connection to the receiver."""
