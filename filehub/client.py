@@ -424,6 +424,8 @@ class Client(_OAuth2Session):
         self.refresh_token_callback = refresh_token_callback
         super(Client, self).__init__(
             *args, client=JWTApplicationClient(kwargs['client_id']), **kwargs)
+        # Set this after the super() call, as our superclass's superclass sets
+        # this indiscriminately to True.
         self.verify = verify
         if not verify:
             os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = 'true'
