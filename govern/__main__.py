@@ -19,7 +19,7 @@ from schema import Schema, Use, And, Or, SchemaError
 
 from six import PY3
 
-from filehub import (
+from govern import (
     Client, DeviceDetails, PersonDetails, FileDetails, Event,
     DEV_CLOUD, DEVICE_TYPES, ACT_CREATE, ACT_WRITE, ACT_MOVE, ACT_COPY,
     ACT_READ, ACT_DELETE,
@@ -242,7 +242,7 @@ def main(opt):
 
     Genny attempts to create coherent random timelines of file activity.
     Events are produced in a manner that yields good timeline data for testing
-    the filehub application.
+    the govern application.
 
     Usage:
         genny [--client-id=ID] [-p PORT] [-H HOST] [-c COUNT]

@@ -3,7 +3,7 @@ Client for interfacing to Govern
 
 # Usage
 ```python
-from filehub import (
+from govern import (
     Client, Event, DeviceDetails, PersonDetails, FileDetails, ACT_READ,
 )
 
@@ -11,10 +11,10 @@ client = Client(
     client_id='8ee21be2-3284-48e7-ac07-c4dc33769014',
     client_secret='9ed2cd6a-14d5-432a-9518-b59043adde0a',
     uid='abcd',
-    url='https://filehub.com/')
+    url='https://getfilehub.com/')
 client.fetch_token()
 
-client.get('https://filehub.com/api/accounts/')
+client.get('https://getfilehub.com/api/accounts/')
 
 event = Event(
     action_type=ACT_READ,
@@ -52,7 +52,7 @@ This package also provides an event generating tool named Genny. This tool will
 produce event streams for testing purposes. To use this tool, simply do:
 
 ```bash
-VERIFY_SSL_CERTIFICATES=no python -m filehub --client-id=<id> --client-secret=<secret> --host=https://localhost/ --token-file=oauth.token
+VERIFY_SSL_CERTIFICATES=no python -m govern --client-id=<id> --client-secret=<secret> --host=https://localhost/ --token-file=oauth.token
 ```
 
 The above will disable SSL certificate checks, connect to the event receiver
