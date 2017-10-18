@@ -39,6 +39,10 @@ test: test2 test3
 lint: venv3
 	venv3/bin/prospector --profile=prospector --die-on-tool-error
 
+#: check - Alias for lint
+.PHONY: check
+check: lint
+
 #: clean - Restore working directory to pristine state
 .PHONY: clean
 clean:
