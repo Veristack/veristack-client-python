@@ -1,4 +1,6 @@
 """FileHub 2.0 (Govern) client tests."""
+import ssl
+
 import requests
 import tempfile
 import unittest
@@ -339,3 +341,38 @@ class ClientTest(unittest.TestCase):
 
         with self.assertRaises(IOError):
             self.client.send_events(events)
+
+    @patch('ssl.SSLContext')
+    def test_nosslverify(self, mock_ssl_context):
+        """
+        Ensure that SSLContext is used when available.
+        """
+        token = {
+            'access_token': '789',
+            'refresh_token': '456',
+            'expires_in': '3600',
+        }
+
+        with self.client.get_event_writer(verify=False, token=token) as writer:
+            writer._sock = MagicMock()
+            writer._sock.write.return_value = None
+            writer._sock.flush.return_value = None
+            writer._sock.readline.return_value = '200 OK'
+
+            event = next(make_timeline())
+            writer.send(event)
+
+        self.assertTrue(mock_ssl_context.return_value.wrap_socket.called)
+        self.assertEqual(False, mock_ssl_context.return_value.check_hostname)
+        self.assertEqual(ssl.CERT_NONE,
+                         mock_ssl_context.return_value.verify_mode)
+
+    @patch('ssl.SSLContext')
+    def test_nosslverify_py2(self, mock_ssl_context):
+        """
+        Ensure that older versions of ssl module are handled by raising.
+        """
+        mock_ssl_context.side_effect = AttributeError()
+
+        with self.assertRaises(AssertionError):
+            self.client.get_event_writer(verify=False)

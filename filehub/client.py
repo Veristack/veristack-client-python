@@ -334,8 +334,10 @@ class EventWriter(object):
     and raises `IOError` for any protocol errors.
     """
 
-    def __init__(self, client):
-        self.client = client
+    def __init__(self, client, url=None, verify=None, token=None):
+        self.url = url if url is not None else client.url
+        self.verify = verify if verify is not None else client.verify
+        self.token = token if token is not None else client.token
         self._sock = None
 
     def __enter__(self):
@@ -350,7 +352,7 @@ class EventWriter(object):
         """Open the connection to the receiver."""
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        if not self.client.verify:
+        if not self.verify:
             try:
                 ctx = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
             except AttributeError:
@@ -360,7 +362,8 @@ class EventWriter(object):
             self._sock = ctx.wrap_socket(self._sock)
         else:
             self._sock = ssl.wrap_socket(self._sock)
-        self._sock.connect((urlparse(self.client.url).netloc, 41677))
+
+        self._sock.connect((urlparse(self.url).netloc, 41677))
         self._sock = self._sock.makefile('rw')
 
         # Receive server banner.
@@ -372,7 +375,7 @@ class EventWriter(object):
         # Send client banner.
         self._sock.write(
             'HELO 1.0 client.js %s Bearer %s\r\n' %
-            (time.time(), self.client.token['access_token']))
+            (time.time(), self.token['access_token']))
         self._sock.flush()
 
         response = self._sock.readline().strip()
@@ -481,9 +484,9 @@ class Client(_OAuth2Session):
         url = urljoin(self.url, '/api/authorizations/')
         return self.get(url, verify=self.verify).json().get('results')
 
-    def get_event_writer(self):
+    def get_event_writer(self, **kwargs):
         """Return a persistent connection to the receiver."""
-        writer = EventWriter(self)
+        writer = EventWriter(self, **kwargs)
         try:
             writer.open()
         except AuthenticationError:
@@ -492,8 +495,8 @@ class Client(_OAuth2Session):
 
         return writer
 
-    def send_events(self, events):
+    def send_events(self, events, **kwargs):
         """Send the list of events to the receiver."""
-        with self.get_event_writer() as writer:
+        with self.get_event_writer(**kwargs) as writer:
             for event in events:
                 writer.send(event)
