@@ -204,7 +204,7 @@ class DeviceDetails(object):
     Provides valiation and serialization. Detects the hostname and os details.
     """
 
-    def __init__(self, device_type=None, name=None, addr=None, os=None,
+    def __init__(self, device_type=None, name=None, addr=None, os=None,  # noqa
                  extra=None):
         """Instantiate DeviceDetails."""
         self.device_type = device_type
@@ -344,6 +344,7 @@ class EventWriter(object):
         self.url = url if url is not None else client.url
         self.verify = verify if verify is not None else client.verify
         self.token = token if token is not None else client.token
+        self._sock = None
 
     def __enter__(self):
         """Handle enter."""
