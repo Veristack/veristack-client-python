@@ -344,9 +344,7 @@ class ClientTest(unittest.TestCase):
 
     @patch('ssl.SSLContext')
     def test_nosslverify(self, mock_ssl_context):
-        """
-        Ensure that SSLContext is used when available.
-        """
+        """Ensure that SSLContext is used when available."""
         token = {
             'access_token': '789',
             'refresh_token': '456',
@@ -369,9 +367,7 @@ class ClientTest(unittest.TestCase):
 
     @patch('ssl.SSLContext')
     def test_nosslverify_py2(self, mock_ssl_context):
-        """
-        Ensure that older versions of ssl module are handled by raising.
-        """
+        """Ensure that older versions of ssl module are handled by raising."""
         mock_ssl_context.side_effect = AttributeError()
 
         with self.assertRaises(AssertionError):

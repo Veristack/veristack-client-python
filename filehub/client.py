@@ -2,7 +2,6 @@
 
 from __future__ import absolute_import
 
-import os
 import hashlib
 import json
 import platform
@@ -10,6 +9,7 @@ import socket
 import ssl
 import time
 
+import os
 from os.path import join as pathjoin
 from os.path import dirname, basename, getsize
 
