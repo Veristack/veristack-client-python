@@ -10,7 +10,7 @@ REQUIRED = [r for r in REQUIRED if not r.startswith('git')]
 
 
 setup(
-    name='filehub',
+    name='govern',
     version='0.1',
     install_requires=REQUIRED,
     description='A client for interfacing to FileHub 2.0 (Govern)',
