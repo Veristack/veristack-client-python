@@ -11,12 +11,12 @@ from mock.mock import Mock, MagicMock
 from oauthlib.oauth2 import TokenExpiredError
 from requests_oauthlib import OAuth2Session
 
-from filehub.client import (
+from govern.client import (
     AuthenticationError, Client, EventWriter, FileDetails, GEO_URL,
     hash_path, JWTApplicationClient, LocationDetails,
 )
 
-from filehub.__main__ import make_timeline
+from govern.__main__ import make_timeline
 
 
 class HashPathTest(unittest.TestCase):
@@ -35,7 +35,7 @@ class HashPathTest(unittest.TestCase):
 class JWTApplicationClientTest(unittest.TestCase):
     """Test JWTApplicationClient."""
 
-    @patch('filehub.client.prepare_token_request')
+    @patch('govern.client.prepare_token_request')
     def test_client(self, mock_request):
         """Test the client."""
         client = JWTApplicationClient('client123')
@@ -53,8 +53,8 @@ class JWTApplicationClientTest(unittest.TestCase):
 class FileDetailsTest(unittest.TestCase):
     """Test FileDetails."""
 
-    @patch('filehub.client.hash_path')
-    @patch('filehub.client.getsize')
+    @patch('govern.client.hash_path')
+    @patch('govern.client.getsize')
     def test_file_details(self, mock_size, mock_hash):
         """Test file details."""
         mock_size.return_value = 1024
@@ -68,8 +68,8 @@ class FileDetailsTest(unittest.TestCase):
         except:
             self.fail('Should not raise an exception')
 
-    @patch('filehub.client.hash_path')
-    @patch('filehub.client.getsize')
+    @patch('govern.client.hash_path')
+    @patch('govern.client.getsize')
     def test_file_details_with_extra(self, mock_size, mock_hash):
         """Test file details with an extra field."""
         mock_size.return_value = 1024
@@ -95,13 +95,13 @@ class ClientTest(unittest.TestCase):
             client_id='abc123',
             client_secret='1234',
             uid='abcd',
-            url='https://filehub.com/',
+            url='https://getfilehub.com/',
         )
 
     def test_invalid_init(self):
         """Test construction with missing parameters."""
         with self.assertRaises(AssertionError):
-            Client(url='https://filehub.com/', uid='abcd')
+            Client(url='https://getfilehub.com/', uid='abcd')
 
     @patch('socket.socket')
     @patch('ssl.wrap_socket')
@@ -120,7 +120,7 @@ class ClientTest(unittest.TestCase):
         self.assertIsNotNone(receiver._sock)
         self.assertTrue(mock_wrap.return_value.connect.called)
         self.assertEqual(
-            'filehub.com',
+            'getfilehub.com',
             mock_wrap.return_value.connect.call_args[0][0][0])
         self.assertTrue(mock_file.write.called)
         self.assertIn('token123', mock_file.write.call_args[0][0])
@@ -192,7 +192,7 @@ class ClientTest(unittest.TestCase):
         response.status_code = 200
         mock_request.return_value = response
 
-        r = self.client.get('https://filehub.com/api/endpoint/')
+        r = self.client.get('https://getfilehub.com/api/endpoint/')
 
         self.assertEqual(200, r.status_code)
 
@@ -215,11 +215,11 @@ class ClientTest(unittest.TestCase):
             client_id='abc123',
             client_secret='1234',
             uid='abcd',
-            url='https://filehub.com/',
+            url='https://getfilehub.com/',
             refresh_token_callback=callback,
         )
 
-        r = client.get('https://filehub.com/api/endpoint/')
+        r = client.get('https://getfilehub.com/api/endpoint/')
 
         self.assertEqual(200, r.status_code)
         self.assertTrue(callback.called)
@@ -233,7 +233,7 @@ class ClientTest(unittest.TestCase):
         mock_refresh_token.return_value = None
 
         with self.assertRaises(TokenExpiredError):
-            self.client.get('https://filehub.com/api/endpoint/')
+            self.client.get('https://getfilehub.com/api/endpoint/')
 
     @patch.object(OAuth2Session, 'fetch_token')
     def test_fetch_token(self, mock_fetch_token):

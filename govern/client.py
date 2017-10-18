@@ -104,6 +104,7 @@ class FileDetails(object):
 
     def __init__(self, path=None, uid=None, directory=None, name=None,
                  size=None, md5=None, fingerprint=None, extra=None):
+        """Instantiate FileDetails."""
         self.path = path
         self.uid = uid
         self.directory = directory
@@ -171,6 +172,7 @@ class PersonDetails(object):
     """
 
     def __init__(self, username=None, fullname=None, email=None, extra=None):
+        """Instantiate PersonDetails."""
         self.username = username or USERNAME
         self.fullname = fullname
         self.email = email
@@ -204,6 +206,7 @@ class DeviceDetails(object):
 
     def __init__(self, device_type=None, name=None, addr=None, os=None,
                  extra=None):
+        """Instantiate DeviceDetails."""
         self.device_type = device_type
         self.name = name or HOSTNAME
         self.addr = addr
@@ -240,6 +243,7 @@ class LocationDetails(object):
     """
 
     def __init__(self, latitude=None, longitude=None):
+        """Instantiate LocationDetails."""
         self.latitude = latitude
         self.longitude = longitude
 
@@ -281,6 +285,7 @@ class Event(object):
 
     def __init__(self, action_type=None, device=None, timestamp=None,
                  person=None, location=None, files=None, extra=None):
+        """Instantiate Event."""
         self.action_type = action_type
         self.device = device
         self.timestamp = timestamp or time.time()
@@ -335,10 +340,10 @@ class EventWriter(object):
     """
 
     def __init__(self, client, url=None, verify=None, token=None):
+        """Instantiate EventWriter."""
         self.url = url if url is not None else client.url
         self.verify = verify if verify is not None else client.verify
         self.token = token if token is not None else client.token
-        self._sock = None
 
     def __enter__(self):
         """Handle enter."""
@@ -419,6 +424,7 @@ class Client(_OAuth2Session):
 
     def __init__(self, url, uid, verify=True, refresh_token_callback=None,
                  *args, **kwargs):
+        """Instantiate Client."""
         self.client_secret = kwargs.pop('client_secret', None)
         if self.client_secret is None and 'token' not in kwargs:
             raise AssertionError('Must provide token or client_secret')
