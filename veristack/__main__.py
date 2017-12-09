@@ -310,7 +310,7 @@ def main(opt):
 
     start = time.time()
     count = handle_rand(clients, opt)
-    print('Sent %s messages in %is' % (count, time.time() - start))
+    print('Sent %s messages in %.3fs' % (count, time.time() - start))
 
     # Close all of those connections.
     for client in clients:
