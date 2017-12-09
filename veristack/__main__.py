@@ -232,9 +232,10 @@ def handle_rand(clients, opt):
             if opt['--count'] and count >= opt['--count'] - 1:
                 break
             time.sleep(opt['--sleep'])
+
     except KeyboardInterrupt:
         pass
-    
+
     return count
 
 
