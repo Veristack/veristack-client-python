@@ -129,9 +129,6 @@ PATHS = [make_path() for _ in range(10)]
 
 def make_fp(f, wordcount=0):
     """Generate fake fingerprint data."""
-    # Tokens are 35% file size, we assume.
-    # A token is 8 bytes, how many can we store after reserving 1024 other
-    # fingerprint data?
     wordcount = wordcount if wordcount is not None else 1000
     nums = [(
         random.randint(1, MAXINT), random.randint(1, 1024))
