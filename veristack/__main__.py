@@ -127,15 +127,15 @@ def make_path():
 PATHS = [make_path() for _ in range(10)]
 
 
-def make_fp(f, size=100000):
-    import pdb; pdb.set_trace()
+def make_fp(f, wordcount=0):
+    """Generate fake fingerprint data."""
     # Tokens are 35% file size, we assume.
     # A token is 8 bytes, how many can we store after reserving 1024 other
     # fingerprint data?
-    t = int((size - 1024) / 8)
+    wordcount = wordcount if wordcount is not None else 1000
     nums = [(
         random.randint(1, MAXINT), random.randint(1, 1024))
-        for _ in range(0, t)
+        for _ in range(0, wordcount)
     ]
     d = {
         'f': f.name, 'y': 'application/genny', 's': f.size, '5': f.md5, 'h': 0,
@@ -145,7 +145,8 @@ def make_fp(f, size=100000):
     m = b''.join([struct.pack('<B', 2), zlib.compress(m)])
     return b64encode(m).decode('ascii')
 
-def make_file(size=None):
+
+def make_file(opt=None):
     """Generate a file resource."""
     # Don't make paths completely random, we want some overlap.
     directory = random.choice(PATHS)
@@ -157,12 +158,14 @@ def make_file(size=None):
     # body =
     # '\r\n\r\n'.join([FAKE.text() for i in range(random.randint(1, 10))])
     size = random.randint(0, 1024 ** 3)
+    wordcount = opt['--word-count'] if opt is not None else 10000
+    wordcount = random.randint(wordcount / 2, wordcount)
     # The UID is derived from the path unless the platform provides a unique
     # identifier (google drive does, onedrive does, genny uses the path).
     uid = hashlib.md5(bytes(path, 'ascii')).hexdigest()
     f = FileDetails(uid=uid, name=name, directory=directory, size=size,
                     md5=FAKE.md5(raw_output=False))
-    f.fingerprint = [make_fp(f, size)]
+    f.fingerprint = [make_fp(f, wordcount)]
     return f
 
 
@@ -171,7 +174,7 @@ def make_event(action_type, device, file, timestamp, opt=None):
     if action_type == ACT_WRITE:
         # Simulate writing data to the file. Create a new randomized file and
         # copy _some_ of it's attributes.
-        mutation = make_file(size=opt['--file-size'])
+        mutation = make_file(opt=opt)
         file.size = mutation.size
         file.md5 = mutation.md5
         file.fingerprint = mutation.fingerprint
@@ -217,7 +220,7 @@ def make_timeline(device=None, file=None, timestamp=None, opt=None):
         device = random.choice(DEVICES)
     if not file:
         # Create a random file.
-        file = make_file(size=opt['--file-size'])
+        file = make_file(opt=opt)
     if not timestamp:
         # Pick a start time, we will increment this as we move forward.
         timestamp = random.randint(int(time.time()) - 31536000,
@@ -293,10 +296,9 @@ def main(opt):
         -s --sleep SLEEP    Seconds to sleep between messages [default: 0]
         -o --connections=CONNECTIONS    Number of clients to send messages
                                         [default: 1]
-        -S --file-size SIZE   The average size of the hypothetical file being
-                              fingerprinted [default: 100000]
+        -S --word-count COUNT   The average size of the hypothetical file being
+                                fingerprinted [default: 100000]
     """
-    import pdb; pdb.set_trace()
     kwargs = {
         'client_id': opt['--client-id'],
         'url': opt['--host'],
