@@ -23,12 +23,12 @@ venv: venv2 venv3
 #: test2 - Run unit tests for Python2.7
 .PHONY: test2
 test2: venv2
-	PYTHONPATH=. venv2/bin/pytest govern
+	PYTHONPATH=. venv2/bin/pytest veristack
 
 #: test3 - Run unit tests for Python3
 .PHONY: test3
 test3: venv3
-	PYTHONPATH=. venv3/bin/pytest govern
+	PYTHONPATH=. venv3/bin/pytest veristack
 
 #: test - Run unit tests for Python2.7 & Python3
 .PHONY: test

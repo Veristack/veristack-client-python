@@ -10,13 +10,13 @@ REQUIRED = [r for r in REQUIRED if not r.startswith('git')]
 
 
 setup(
-    name='govern',
+    name='veristack-client',
     version='0.1',
     install_requires=REQUIRED,
-    description='A client for interfacing to FileHub 2.0 (Govern)',
+    description='A client for interfacing to Veristack',
     author='Clifton Barnes',
-    author_email='cbarnes@smartfile.com',
-    url='https://getfilehub.com/',
+    author_email='cbarnes@veristack.com',
+    url='https://veristack.com/',
     platforms='OS Independent',
     packages=find_packages(),
     include_package_data=True,

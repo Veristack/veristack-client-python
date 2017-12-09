@@ -19,7 +19,7 @@ from schema import Schema, Use, And, Or, SchemaError
 
 from six import PY3
 
-from govern import (
+from veristack import (
     Client, DeviceDetails, PersonDetails, FileDetails, Event,
     DEV_CLOUD, DEVICE_TYPES, ACT_CREATE, ACT_WRITE, ACT_MOVE, ACT_COPY,
     ACT_READ, ACT_DELETE,
@@ -223,14 +223,19 @@ def make_timeline(device=None, file=None, timestamp=None):
 def handle_rand(clients, opt):
     """Send a bunch of messages."""
     count = 0
-    while True:
-        for event in make_timeline():
-            pprint(event.to_dict())
-            random.choice(clients).send(event)
-            count += 1
-        if opt['--count'] and count >= opt['--count'] - 1:
-            break
-        time.sleep(opt['--sleep'])
+    try:
+        while True:
+            for event in make_timeline():
+                pprint(event.to_dict())
+                random.choice(clients).send(event)
+                count += 1
+            if opt['--count'] and count >= opt['--count'] - 1:
+                break
+            time.sleep(opt['--sleep'])
+    except KeyboardInterrupt:
+        pass
+    
+    return count
 
 
 def main(opt):
@@ -242,7 +247,7 @@ def main(opt):
 
     Genny attempts to create coherent random timelines of file activity.
     Events are produced in a manner that yields good timeline data for testing
-    the govern application.
+    the veristack application.
 
     Usage:
         genny [--client-id=ID] [-p PORT] [-H HOST] [-c COUNT]
@@ -302,7 +307,9 @@ def main(opt):
 
     print("Clients Connected: %s" % len(clients))
 
-    handle_rand(clients, opt)
+    start = time.time()
+    count = handle_rand(clients, opt)
+    print('Sent %s messages in %is' % (count, time.time() - start))
 
     # Close all of those connections.
     for client in clients:

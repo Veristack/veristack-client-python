@@ -1,4 +1,4 @@
-"""FileHub integration client."""
+"""Veristack integration client."""
 
 from __future__ import absolute_import
 
