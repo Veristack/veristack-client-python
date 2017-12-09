@@ -7,10 +7,13 @@ from os.path import join as pathjoin
 
 import hashlib
 import json
+import struct
 import random
 import copy
 import time
+import zlib
 
+from base64 import b64encode
 from pprint import pprint
 
 from docopt import docopt
@@ -18,6 +21,8 @@ from faker import Faker
 from schema import Schema, Use, And, Or, SchemaError
 
 from six import PY3
+
+import msgpack
 
 from veristack import (
     Client, DeviceDetails, PersonDetails, FileDetails, Event,
@@ -30,6 +35,7 @@ if not PY3:
         return d
 
 
+MAXINT = 2147483647
 FAKE = Faker()
 
 PATH_PARTS = (
@@ -121,7 +127,25 @@ def make_path():
 PATHS = [make_path() for _ in range(10)]
 
 
-def make_file():
+def make_fp(f, size=100000):
+    import pdb; pdb.set_trace()
+    # Tokens are 35% file size, we assume.
+    # A token is 8 bytes, how many can we store after reserving 1024 other
+    # fingerprint data?
+    t = int((size - 1024) / 8)
+    nums = [(
+        random.randint(1, MAXINT), random.randint(1, 1024))
+        for _ in range(0, t)
+    ]
+    d = {
+        'f': f.name, 'y': 'application/genny', 's': f.size, '5': f.md5, 'h': 0,
+        'c': time.time(), 'm': time.time(), 'w': nums,
+    }
+    m = msgpack.packb(d, use_bin_type=True)
+    m = b''.join([struct.pack('<B', 2), zlib.compress(m)])
+    return b64encode(m).decode('ascii')
+
+def make_file(size=None):
     """Generate a file resource."""
     # Don't make paths completely random, we want some overlap.
     directory = random.choice(PATHS)
@@ -138,15 +162,16 @@ def make_file():
     uid = hashlib.md5(bytes(path, 'ascii')).hexdigest()
     f = FileDetails(uid=uid, name=name, directory=directory, size=size,
                     md5=FAKE.md5(raw_output=False))
+    f.fingerprint = [make_fp(f, size)]
     return f
 
 
-def make_event(action_type, device, file, timestamp):
+def make_event(action_type, device, file, timestamp, opt=None):
     """Create an audit event."""
     if action_type == ACT_WRITE:
         # Simulate writing data to the file. Create a new randomized file and
         # copy _some_ of it's attributes.
-        mutation = make_file()
+        mutation = make_file(size=opt['--file-size'])
         file.size = mutation.size
         file.md5 = mutation.md5
         file.fingerprint = mutation.fingerprint
@@ -186,38 +211,40 @@ def make_event(action_type, device, file, timestamp):
     return fake_event
 
 
-def make_timeline(device=None, file=None, timestamp=None):
+def make_timeline(device=None, file=None, timestamp=None, opt=None):
     """Create a timeline of audit activity."""
     if not device:
         device = random.choice(DEVICES)
     if not file:
         # Create a random file.
-        file = make_file()
+        file = make_file(size=opt['--file-size'])
     if not timestamp:
         # Pick a start time, we will increment this as we move forward.
         timestamp = random.randint(int(time.time()) - 31536000,
                                    int(time.time()))
     # And a create action.
-    yield make_event(ACT_CREATE, device, file, timestamp)
+    yield make_event(ACT_CREATE, device, file, timestamp, opt=opt)
     # Create a series of events:
     for _ in range(random.randint(5, 8)):
         # Increment time by 10s-4d
         timestamp += random.randint(10, 345600)
         # Only a subset of actions make sense here.
         action = random.choice((ACT_READ, ACT_WRITE, ACT_COPY))
-        event = make_event(action, device, file, timestamp)
+        event = make_event(action, device, file, timestamp, opt=opt)
         yield event
         if action == ACT_COPY:
-            yield make_event(ACT_CREATE, device, event.files[1], timestamp)
+            yield make_event(
+                ACT_CREATE, device, event.files[1], timestamp, opt=opt)
     # Increment time by 10s-4d
     timestamp += random.randint(10, 345600)
     # Half the time, end with a terminal action
     terminal_action = random.choice((ACT_MOVE, ACT_DELETE, None, None))
     if terminal_action:
-        event = make_event(terminal_action, device, file, timestamp)
+        event = make_event(terminal_action, device, file, timestamp, opt=opt)
         yield event
         if terminal_action == ACT_MOVE:
-            yield make_event(ACT_CREATE, device, event.files[1], timestamp)
+            yield make_event(
+                ACT_CREATE, device, event.files[1], timestamp, opt=opt)
 
 
 def handle_rand(clients, opt):
@@ -225,7 +252,7 @@ def handle_rand(clients, opt):
     count = 0
     try:
         while True:
-            for event in make_timeline():
+            for event in make_timeline(opt=opt):
                 pprint(event.to_dict())
                 random.choice(clients).send(event)
                 count += 1
@@ -253,7 +280,7 @@ def main(opt):
     Usage:
         genny [--client-id=ID] [-p PORT] [-H HOST] [-c COUNT]
               [--client-secret=SECRET|--token=TOKEN] [--token-file=FILE]
-              [-s SLEEP] [-o CONNECTIONS]
+              [-s SLEEP -o CONNECTIONS -S SIZE]
 
     Options:
         -i --client-id=ID      OAuth2 CLIENT_ID
@@ -266,7 +293,10 @@ def main(opt):
         -s --sleep SLEEP    Seconds to sleep between messages [default: 0]
         -o --connections=CONNECTIONS    Number of clients to send messages
                                         [default: 1]
+        -S --file-size SIZE   The average size of the hypothetical file being
+                              fingerprinted [default: 100000]
     """
+    import pdb; pdb.set_trace()
     kwargs = {
         'client_id': opt['--client-id'],
         'url': opt['--host'],

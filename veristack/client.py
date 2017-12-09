@@ -421,7 +421,7 @@ class EventWriter(object):
 
 
 class Client(_OAuth2Session):
-    """Client for communicating to FileHub 2.0 (Govern) API."""
+    """Client for communicating to Veristack."""
 
     def __init__(self, url, uid, verify=True, refresh_token_callback=None,
                  *args, **kwargs):
