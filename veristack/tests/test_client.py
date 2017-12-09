@@ -1,4 +1,4 @@
-"""FileHub 2.0 (Govern) client tests."""
+"""Veristack client tests."""
 import ssl
 
 import requests
@@ -11,12 +11,12 @@ from mock.mock import Mock, MagicMock
 from oauthlib.oauth2 import TokenExpiredError
 from requests_oauthlib import OAuth2Session
 
-from govern.client import (
+from veristack.client import (
     AuthenticationError, Client, EventWriter, FileDetails, GEO_URL,
     hash_path, JWTApplicationClient, LocationDetails,
 )
 
-from govern.__main__ import make_timeline
+from veristack.__main__ import make_timeline
 
 
 class HashPathTest(unittest.TestCase):
@@ -35,7 +35,7 @@ class HashPathTest(unittest.TestCase):
 class JWTApplicationClientTest(unittest.TestCase):
     """Test JWTApplicationClient."""
 
-    @patch('govern.client.prepare_token_request')
+    @patch('veristack.client.prepare_token_request')
     def test_client(self, mock_request):
         """Test the client."""
         client = JWTApplicationClient('client123')
@@ -53,8 +53,8 @@ class JWTApplicationClientTest(unittest.TestCase):
 class FileDetailsTest(unittest.TestCase):
     """Test FileDetails."""
 
-    @patch('govern.client.hash_path')
-    @patch('govern.client.getsize')
+    @patch('veristack.client.hash_path')
+    @patch('veristack.client.getsize')
     def test_file_details(self, mock_size, mock_hash):
         """Test file details."""
         mock_size.return_value = 1024
@@ -68,8 +68,8 @@ class FileDetailsTest(unittest.TestCase):
         except:
             self.fail('Should not raise an exception')
 
-    @patch('govern.client.hash_path')
-    @patch('govern.client.getsize')
+    @patch('veristack.client.hash_path')
+    @patch('veristack.client.getsize')
     def test_file_details_with_extra(self, mock_size, mock_hash):
         """Test file details with an extra field."""
         mock_size.return_value = 1024
