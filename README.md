@@ -52,7 +52,7 @@ This package also provides an event generating tool named Genny. This tool will
 produce event streams for testing purposes. To use this tool, simply do:
 
 ```bash
-VERIFY_SSL_CERTIFICATES=no python -m veristack --client-id=<id> --client-secret=<secret> --host=https://localhost/ --token-file=oauth.token
+VERIFY_SSL_CERTIFICATES=no python -m veristack genny --client-id=<id> --client-secret=<secret> --host=https://localhost/ --token-file=oauth.token
 ```
 
 The above will disable SSL certificate checks, connect to the event receiver
