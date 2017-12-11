@@ -294,7 +294,7 @@ def main(opt):
         -o --connections=CONNECTIONS    Number of clients to send messages
                                         [default: 1]
         -S --word-count COUNT   The average size of the hypothetical file being
-                                fingerprinted [default: 100000]
+                                fingerprinted [default: 0]
     """
     kwargs = {
         'client_id': opt['--client-id'],
@@ -359,6 +359,7 @@ if __name__ == '__main__':
             '--count': Use(int),
             '--sleep': Use(float),
             '--connections': Use(int),
+            '--word-count': Use(int),
 
             object: object,
         }).validate(options)
