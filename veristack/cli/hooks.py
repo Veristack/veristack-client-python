@@ -12,9 +12,10 @@ import random
 from pprint import pprint
 from urllib.parse import urlparse, urlunparse
 
+import asyncio
 import aiohttp
 from aiohttp import web
-import asyncio
+from aiohttp.formdata import FormData
 
 from docopt import docopt
 from schema import Schema, Use, And, Or, SchemaError
@@ -33,6 +34,7 @@ def kloud_sign(data, key):
 async def send_webhook(session, number, opts):
     data = b'account=%i' % number
     headers = {
+        'Content-Type': 'application/x-www-form-urlencoded',
         'X-Kloudless-Signature': kloud_sign(data, opts['--api-key'])
     }
 
@@ -46,7 +48,8 @@ async def send_webhook(session, number, opts):
         None
     ))
 
-    async with session.post(url, headers=headers, data=data, verify_ssl=VERIFY_SSL) as r:
+    async with session.post(
+        url, headers=headers, data=data, verify_ssl=VERIFY_SSL) as r:
         assert r.status == 200, '%i != 200' % r.status
         text = await r.text()
         assert text == 'ok', '%s != ok' % text
