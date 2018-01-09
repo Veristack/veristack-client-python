@@ -49,7 +49,7 @@ def main(argv):
     Usage:
         veristack genny [--client-id=ID] [-p PORT] [-H HOST] [-c COUNT]
                         [--client-secret=SECRET|--token=TOKEN] [-S COUNT]
-                        [-s SLEEP -o CONNECTIONS -S SIZE] [--token-file=FILE]
+                        [-s SLEEP -o CONNECTIONS] [--token-file=FILE]
 
     Options:
         -i --client-id=ID      OAuth2 CLIENT_ID
