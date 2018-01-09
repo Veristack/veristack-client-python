@@ -5,9 +5,10 @@ from __future__ import absolute_import
 import os
 import base64
 import hmac
+import json
 import hashlib
 import random
-
+import logging
 
 from pprint import pprint
 from urllib.parse import urlparse, urlunparse
@@ -21,8 +22,51 @@ from docopt import docopt
 from schema import Schema, Use, And, Or, SchemaError
 
 
+LOGGER = logging.getLogger(__name__)
+
 VERIFY_SSL = os.environ.get('VERIFY_SSL_CERTIFICATES', '') \
              not in ('no', 'off', '0')
+
+# TODO: randomize this data ala genny.
+ACCOUNT = {
+    'service': 'box',
+}
+EVENTS = {
+    'objects': [{
+        'id': '827',
+        'account': 6721,
+        'action': '-',
+        'modified': '2017-03-15T19:40:46Z',
+        'type': 'add',
+        'user_id': 'uc21hcnRmaWxlQHNtYXJ0ZmlsZWRldi5vbm1pY3Jvc29mdC5jb20=',
+        'ip': '209.43.28.60',
+        'metadata': {
+            'account': 6721,
+            'ancestors': None,
+            'name': 'testing-text.txt',
+            'parent': {
+                'name': 'Shared Documents',
+                'id': 'FogwGVqe2m8jc4iXp532tjjP5bGPGNiqrfvy89eEEpWJedHQr3j0O890L1_KD_jyQUfqntke76fQyNmaN5KHsuGAChju2u98soaE0Fv75PHY='
+            },
+            'created': None,
+            'modified': None,
+            'raw_id': 'NewSite:GetFileByServerRelativeUrl(\'/NewSite/Shared Documents/testing-text.txt\')',
+            'downloadable': True,
+            'path': '/NewSite/Shared Documents/testing-text.txt',
+            'type': 'file',
+            'id': 'FmVG6AR6NlG4nGWWpB8OUP8-Uj1t4yTmOLQFSXulhh69F191TrXkywlIyJlNFXRR2mX_yKjW_EFxigVCE0A4efdvLhLtF7AcU7Nq2BIge4hPdsINZ2QxrIgMi9U_QV26d',
+            'mime_type': 'text/plain',
+            'size': None,
+        },
+    },],
+}
+USER = {
+    'email': 'foo@bar.org',
+    'name': 'Foobar',
+}
+FILE = {
+    'size': 100,
+}
 
 
 def kloud_sign(data, key):
@@ -31,8 +75,8 @@ def kloud_sign(data, key):
     return h.decode('ascii')
 
 
-async def send_webhook(session, number, opts):
-    data = b'account=%i' % number
+async def send_webhook(session, account_id, opts):
+    data = b'account=%i' % account_id
     headers = {
         'Content-Type': 'application/x-www-form-urlencoded',
         'X-Kloudless-Signature': kloud_sign(data, opts['--api-key'])
@@ -55,35 +99,39 @@ async def send_webhook(session, number, opts):
         assert text == 'ok', '%s != ok' % text
 
 
-class HookServer(object):
-    """Async IO server."""
+async def send_webhooks(opts):
+    async with aiohttp.ClientSession() as session:
+        for i in range(opts['--count']):
+            account_id = random.randint(1, 1000000)
 
-    def __init__(self, opts):
-        self.opts = opts
-        self.hooks = set()
+            await send_webhook(session, account_id, opts)
+            LOGGER.debug('Sent webhook')
 
-    async def generate(self):
-        """Generate and send webhooks."""
-        i = 0
-        async with aiohttp.ClientSession() as session:
-            while True:
-                i += 1
+            asyncio.sleep(opts['--sleep'])
 
-                while True:
-                    number = random.randint(1, 1000000)
-                    if number not in self.hooks:
-                        break
-                self.hooks.add(number)
-                await send_webhook(session, number, self.opts)
 
-                if i == self.opts['--count']:
-                    break
+async def handle_account(request):
+    LOGGER.debug('GET: %s', request.path)
+    return web.Response(
+        content_type='application/json', text=json.dumps(ACCOUNT))
 
-                asyncio.sleep(self.opts['--sleep'])
 
-    async def handle_hooks(self, request):
-        """Respond to webhook requests with audit data."""
-        return web.Response(text='OK')
+async def handle_events(request):
+    LOGGER.debug('GET: %s', request.path)
+    return web.Response(
+        content_type='application/json', text=json.dumps(EVENTS))
+
+
+async def handle_user(request):
+    LOGGER.debug('GET: %s', request.path)
+    return web.Response(
+        content_type='application/json', text=json.dumps(USER))
+
+
+async def handle_file(request):
+    LOGGER.debug('GET: %s', request.path)
+    return web.Response(
+        content_type='application/json', text=json.dumps(FILE))
 
 
 def main(argv):
@@ -127,16 +175,29 @@ def main(argv):
     except SchemaError as e:
         exit(e.args[0])
 
-    server = HookServer(opts)
+    LOGGER.addHandler(logging.StreamHandler())
+    LOGGER.setLevel(logging.DEBUG)
+
+    # First set up web server to handle requests.
+    app = web.Application()
+
+    app.router.add_route(
+        'GET', '/v1//accounts/{account_id}', handle_account)
+    app.router.add_route(
+        'GET', '/v1//accounts/{account_id}/events', handle_events)
+    app.router.add_route(
+        'GET', '/v1//accounts/{account_id}/team/users/{user_id}', handle_user)
+    app.router.add_route(
+        'GET', '/v1//accounts/{account_id}/storage/files/{file_id}',
+        handle_file)
 
     loop = asyncio.get_event_loop()
 
-    # First set up web server to handle requests.
-    http = web.Server(server.handle_hooks)
-    loop.create_server(http, '0.0.0.0', 8443)
+    coro = loop.create_server(app.make_handler(), '0.0.0.0', 8443)
+    loop.run_until_complete(coro)
 
     # Then send hooks to trigger requests.
-    loop.run_until_complete(server.generate())
+    loop.run_until_complete(send_webhooks(opts))
 
     try:
         loop.run_forever()
