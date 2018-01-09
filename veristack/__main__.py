@@ -1,4 +1,4 @@
-"""Genny, audit record generator."""
+"""Veristack CLI program."""
 
 from __future__ import absolute_import
 
@@ -29,6 +29,9 @@ from veristack import (
     DEV_CLOUD, DEVICE_TYPES, ACT_CREATE, ACT_WRITE, ACT_MOVE, ACT_COPY,
     ACT_READ, ACT_DELETE,
 )
+from veristack.cli import genny
+from veristack.cli import hooks
+
 
 if not PY3:
     def bytes(d, enc=None):  # noqa
@@ -155,7 +158,11 @@ def make_file(opt=None):
     # body =
     # '\r\n\r\n'.join([FAKE.text() for i in range(random.randint(1, 10))])
     size = random.randint(0, 1024 ** 3)
-    wordcount = opt['--word-count'] if opt is not None else 10000
+    try:
+        wordcount = opt['--word-count']
+    except (AttributeError, KeyError):
+        wordcount = None
+    wordcount = wordcount if wordcount is not None else 10000
     wordcount = random.randint(wordcount / 2, wordcount)
     # The UID is derived from the path unless the platform provides a unique
     # identifier (google drive does, onedrive does, genny uses the path).
@@ -247,122 +254,32 @@ def make_timeline(device=None, file=None, timestamp=None, opt=None):
                 ACT_CREATE, device, event.files[1], timestamp, opt=opt)
 
 
-def handle_rand(clients, opt):
-    """Send a bunch of messages."""
-    count = 0
-    try:
-        while True:
-            for event in make_timeline(opt=opt):
-                pprint(event.to_dict())
-                random.choice(clients).send(event)
-                count += 1
-            if opt['--count'] and count >= opt['--count'] - 1:
-                break
-            time.sleep(opt['--sleep'])
+def main(opts, argv):
+    """Veristack.
 
-    except KeyboardInterrupt:
-        pass
-
-    return count
-
-
-def main(opt):
-    """Genny.
-
-    Generates audit data for FileHub. The data is injected into the receiver.
-    Receiver adds data to the Hot model, and from there it is ingested into
-    Audit model and friends.
-
-    Genny attempts to create coherent random timelines of file activity.
-    Events are produced in a manner that yields good timeline data for testing
-    the veristack application.
+    Veristack CLI program.
 
     Usage:
-        genny [--client-id=ID] [-p PORT] [-H HOST] [-c COUNT]
-              [--client-secret=SECRET|--token=TOKEN] [--token-file=FILE]
-              [-s SLEEP -o CONNECTIONS -S SIZE]
+        veristack <command> [<args>...]
 
-    Options:
-        -i --client-id=ID      OAuth2 CLIENT_ID
-        -e --client-secret=SECRET  OAuth2 CLIENT_SECRET
-        -t --token=TOKEN    OAuth2 Token
-        -f --token-file=FILE  The file in which to read/write the token.
-        -H --host HOST      Host to connect to [default: localhost]
-        -p --port PORT      TCP port to connect to on HOST [default: 41666]
-        -c --count COUNT    Number of messages to generate/send [default: 0]
-        -s --sleep SLEEP    Seconds to sleep between messages [default: 0]
-        -o --connections=CONNECTIONS    Number of clients to send messages
-                                        [default: 1]
-        -S --word-count COUNT   The average size of the hypothetical file being
-                                fingerprinted [default: 100000]
+    Commands:
+        genny  Generates audit data for receiver.
+        hooks  Generates audit data for webhooks.
     """
-    kwargs = {
-        'client_id': opt['--client-id'],
-        'url': opt['--host'],
-        'uid': 'genny',
-    }
-    if opt['--client-secret']:
-        kwargs['client_secret'] = opt['--client-secret']
+    if opts['<command>'] == 'genny':
+        genny.main(argv)
 
-    if opt['--token-file']:
-        try:
-            with open(opt['--token-file'], 'r') as f:
-                kwargs['token'] = json.loads(f.read())
-        except IOError:
-            pass
+    elif opts['<command>'] == 'hooks':
+        hooks.main(argv)
 
-    if opt['--token']:
-        kwargs['token'] = opt['--token']
-
-    if 'client_secret' not in kwargs and 'token' not in kwargs:
-        exit('Client secret or token required.')
-
-    if os.environ.get('VERIFY_SSL_CERTIFICATES',
-                      None) in ('no', 'false', 'off'):
-        kwargs['verify'] = False
-
-    client = Client(**kwargs)
-
-    if 'token' not in kwargs:
-        client.fetch_token()
-
-    if opt['--token-file']:
-        with open(opt['--token-file'], 'w') as f:
-            f.write(json.dumps(client.token))
-
-    # Create (potentially) a lot of connections.
-    clients = [
-        client.get_event_writer() for _ in range(opt['--connections'])
-    ]
-
-    print("Clients Connected: %s" % len(clients))
-
-    start = time.time()
-    count = handle_rand(clients, opt)
-    print('Sent %s messages in %.3fs' % (count, time.time() - start))
-
-    # Close all of those connections.
-    for client in clients:
-        client.close()
+    else:
+        exit("%r is not a veristack command. See 'veristack help'." %
+             opts['<command>'])
 
 
 if __name__ == '__main__':
-    options = docopt(main.__doc__)
+    opts = docopt(main.__doc__, options_first=True)
 
-    try:
-        options = Schema({
-            '--client-id': And(str, error='--client-id is required'),
-            '--token-file': Or(None,
-                               Use(str, error='--token-file should be path')),
-            '--host': str,
-            '--port': Use(int),
-            '--count': Use(int),
-            '--sleep': Use(float),
-            '--connections': Use(int),
+    argv = [opts['<command>']] + opts['<args>']
 
-            object: object,
-        }).validate(options)
-    except SchemaError as e:
-        exit(e.args[0])
-
-    main(options)
+    main(opts, argv)
