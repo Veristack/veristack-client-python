@@ -423,21 +423,22 @@ class EventWriter(object):
 class Client(_OAuth2Session):
     """Client for communicating to Veristack."""
 
-    def __init__(self, url, uid, verify=True, refresh_token_callback=None,
-                 *args, **kwargs):
+    def __init__(self, *args, **kwargs):
         """Instantiate Client."""
         self.client_secret = kwargs.pop('client_secret', None)
         if self.client_secret is None and 'token' not in kwargs:
             raise AssertionError('Must provide token or client_secret')
-        self.url = url
-        self.uid = uid
-        self.refresh_token_callback = refresh_token_callback
+        self.url = kwargs.pop('url')
+        self.uid = kwargs.pop('uid')
+        self.refresh_token_callback = kwargs.pop('refresh_token_callback',
+                                                 None)
+        self.verify = kwargs.pop('verify', True)
         super(Client, self).__init__(
-            *args, client=JWTApplicationClient(kwargs['client_id']), **kwargs)
+            *args[2:], client=JWTApplicationClient(kwargs['client_id']),
+            **kwargs)
         # Set this after the super() call, as our superclass's superclass sets
         # this indiscriminately to True.
-        self.verify = verify
-        if not verify:
+        if not self.verify:
             os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = 'true'
 
     def fetch_token(self, **kwargs):
