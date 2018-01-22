@@ -1,3 +1,5 @@
+PASSWORD =
+
 #: help - Display callable targets.
 .PHONY: help
 help:
@@ -56,3 +58,29 @@ setup-ubuntu:
 #: ci - Run continuous integration tests
 .PHONY: ci
 ci: setup-ubuntu clean test lint
+
+#: sdist - Create a tar.gz distribution.
+.PHONY: sdist
+sdist:
+	${MAKE} venv3
+	rm -rf dist
+	venv3/bin/python setup.py sdist
+
+#: priv-pypi-upload - upload source distribution on private PYPI repo.
+.PHONY: priv-pypi-upload
+priv-pypi-upload:
+	# Note: to reference the uploaded distribution, requirements.txt will
+	# need an entry like this:
+	#   --extra-index-url http://pypi.dev.veristack.com/root/veristack-duster/+simple/
+	#   duster==0.2.315.b00117c
+	${MAKE} sdist
+	venv3/bin/pip install devpi-client
+ifndef PASSWORD
+	venv3/bin/python -m devpi login root
+else
+	venv3/bin/python -m devpi login root --password=$(PASSWORD)
+endif
+	# Create index (done once)
+	# venv3/bin/python -m devpi index --create root/veristack-client-python
+	venv3/bin/python -m devpi use http://pypi.dev.veristack.com/root/veristack-client-python
+	venv3/bin/python -m devpi  upload -v dist/*.tar.gz
