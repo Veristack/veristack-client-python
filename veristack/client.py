@@ -29,7 +29,7 @@ from requests_oauthlib import OAuth2Session as _OAuth2Session
 
 
 GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:jwt-bearer'
-GEO_URL = 'https://geo.getfilehub.com/'
+GEO_URL = 'https://geo.veristack.com/'
 OS = platform.system()
 HOSTNAME = socket.gethostname()
 USERNAME = getpass.getuser()
