@@ -432,10 +432,11 @@ class Client(_OAuth2Session):
         self.uid = kwargs.pop('uid')
         self.refresh_token_callback = kwargs.pop('refresh_token_callback',
                                                  None)
-        self.verify = kwargs.pop('verify', True)
+        self.kwargverify = kwargs.pop('verify', True)
         super(Client, self).__init__(
             *args[2:], client=JWTApplicationClient(kwargs['client_id']),
             **kwargs)
+        self.verify = self.kwargverify
         # Set this after the super() call, as our superclass's superclass sets
         # this indiscriminately to True.
         if not self.verify:

@@ -288,7 +288,7 @@ def main(opt):
         -t --token=TOKEN    OAuth2 Token
         -f --token-file=FILE  The file in which to read/write the token.
         -H --host HOST      Host to connect to [default: localhost]
-        -p --port PORT      TCP port to connect to on HOST [default: 41666]
+        -p --port PORT      TCP port to connect to on HOST [default: 41677]
         -c --count COUNT    Number of messages to generate/send [default: 0]
         -s --sleep SLEEP    Seconds to sleep between messages [default: 0]
         -o --connections=CONNECTIONS    Number of clients to send messages
