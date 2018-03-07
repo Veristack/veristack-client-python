@@ -423,7 +423,7 @@ class EventWriter(object):
 class Client(_OAuth2Session):
     """Client for communicating to Veristack."""
 
-    def __init__(self, verify=True, *args, **kwargs):
+    def __init__(self, *args, verify=True, **kwargs):
         """Instantiate Client."""
         self.client_secret = kwargs.pop('client_secret', None)
         if self.client_secret is None and 'token' not in kwargs:
