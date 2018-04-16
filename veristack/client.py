@@ -444,8 +444,12 @@ class Client(_OAuth2Session):
     def fetch_token(self, **kwargs):
         kwargs.setdefault('verify', self.verify)
         payload = {'device': {'uid': self.uid}}
+        if self.url.endswith('/'):
+            url = self.url + 'oauth2/token/'
+        else:
+            url = self.url + '/oauth2/token/'
         token = super(Client, self).fetch_token(
-            urljoin(self.url, '/oauth2/token/'),
+            url,
             headers={
                 'Authorization': b'Bearer %s' %
                 jwt.encode(payload, self.client_secret)
