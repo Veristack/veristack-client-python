@@ -465,8 +465,12 @@ class Client(_OAuth2Session):
         kwargs.setdefault('access_token',
                           self.token.get('access_token', None))
         payload = {'device': {'uid': self.uid}}
+        if self.url.endswith('/'):
+            url = self.url + 'oauth2/token/'
+        else:
+            url = self.url + '/oauth2/token/'
         return super(Client, self).refresh_token(
-            urljoin(self.url, '/oauth2/token/'),
+            url,
             client_secret=self.client_secret,
             headers={
                 'Authorization': b'Bearer %s' %
